@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Assists.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">meeting-scheduler-backend</a> &gt; <a href="index.source.html" class="el_package">com.meetingscheduler.entity</a> &gt; <span class="el_source">Assists.java</span></div><h1>Assists.java</h1><pre class="source lang-java linenums">package com.meetingscheduler.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;assists&quot;)
+<span class="nc bnc" id="L13" title="All 78 branches missed.">@Data</span>
+<span class="nc" id="L14">@NoArgsConstructor</span>
+<span class="nc" id="L15">@AllArgsConstructor</span>
+public class Assists {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = &quot;id&quot;)
+<span class="nc" id="L21">    private UUID id;</span>
+    
+    @Column(name = &quot;assignment_resp&quot;)
+<span class="nc" id="L24">    private String assignmentResp;</span>
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = &quot;permissions&quot;)
+<span class="nc" id="L28">    private Permissions permissions;</span>
+    
+    @Column(name = &quot;start_date&quot;)
+<span class="nc" id="L31">    private LocalDateTime startDate;</span>
+    
+    @Column(name = &quot;end_date&quot;)
+<span class="nc" id="L34">    private LocalDateTime endDate;</span>
+    
+    @Column(name = &quot;assigner_id&quot;)
+<span class="nc" id="L37">    private UUID assignerId;</span>
+    
+    @Column(name = &quot;assignee_id&quot;)
+<span class="nc" id="L40">    private UUID assigneeId;</span>
+    
+    // Relationship with Secretary
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;assignee_id&quot;, insertable = false, updatable = false)
+<span class="nc" id="L45">    private Secretary secretary;</span>
+    
+    // Relationship with Executive
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;assigner_id&quot;, insertable = false, updatable = false)
+<span class="nc" id="L50">    private Executive executive;</span>
+    
+<span class="nc" id="L52">    public enum Permissions {</span>
+<span class="nc" id="L53">        READ_ONLY, FULL_ACCESS, LIMITED_ACCESS</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

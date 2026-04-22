@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ExecutiveController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">meeting-scheduler-backend</a> &gt; <a href="index.source.html" class="el_package">com.meetingscheduler.controller</a> &gt; <span class="el_source">ExecutiveController.java</span></div><h1>ExecutiveController.java</h1><pre class="source lang-java linenums">package com.meetingscheduler.controller;
+
+import com.meetingscheduler.entity.User;
+import com.meetingscheduler.service.AuthService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping(&quot;/api/executives&quot;)
+@CrossOrigin(origins = &quot;http://localhost:3000&quot;)
+<span class="nc" id="L15">public class ExecutiveController {</span>
+
+    @Autowired
+    private AuthService authService;
+
+    // Get all executives (for secretaries and admins)
+    @GetMapping
+    public ResponseEntity&lt;List&lt;User&gt;&gt; getAllExecutives() {
+        try {
+<span class="nc" id="L24">            List&lt;User&gt; executives = authService.getAllExecutives();</span>
+<span class="nc" id="L25">            return ResponseEntity.ok(executives);</span>
+<span class="nc" id="L26">        } catch (Exception e) {</span>
+<span class="nc" id="L27">            return ResponseEntity.badRequest().build();</span>
+        }
+    }
+
+    // Get all users (for meeting participants)
+    @GetMapping(&quot;/all&quot;)
+    public ResponseEntity&lt;List&lt;User&gt;&gt; getAllUsers() {
+        try {
+<span class="nc" id="L35">            List&lt;User&gt; users = authService.getAllUsers();</span>
+<span class="nc" id="L36">            return ResponseEntity.ok(users);</span>
+<span class="nc" id="L37">        } catch (Exception e) {</span>
+<span class="nc" id="L38">            return ResponseEntity.badRequest().build();</span>
+        }
+    }
+
+    // Get executives by secretary (for secretaries to see their assigned executives)
+    @GetMapping(&quot;/secretary/{secretaryId}&quot;)
+    public ResponseEntity&lt;List&lt;User&gt;&gt; getExecutivesBySecretary(@PathVariable UUID secretaryId) {
+        try {
+<span class="nc" id="L46">            List&lt;User&gt; executives = authService.getExecutivesBySecretary(secretaryId);</span>
+<span class="nc" id="L47">            return ResponseEntity.ok(executives);</span>
+<span class="nc" id="L48">        } catch (Exception e) {</span>
+<span class="nc" id="L49">            return ResponseEntity.badRequest().build();</span>
+        }
+    }
+
+    // Assign executive to secretary (for admins)
+    @PostMapping(&quot;/{executiveId}/assign-secretary/{secretaryId}&quot;)
+    public ResponseEntity&lt;String&gt; assignSecretaryToExecutive(
+            @PathVariable UUID executiveId, 
+            @PathVariable UUID secretaryId) {
+        try {
+<span class="nc" id="L59">            authService.assignSecretaryToExecutive(executiveId, secretaryId);</span>
+<span class="nc" id="L60">            return ResponseEntity.ok(&quot;Secretary assigned successfully&quot;);</span>
+<span class="nc" id="L61">        } catch (Exception e) {</span>
+<span class="nc" id="L62">            return ResponseEntity.badRequest().body(&quot;Failed to assign secretary: &quot; + e.getMessage());</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

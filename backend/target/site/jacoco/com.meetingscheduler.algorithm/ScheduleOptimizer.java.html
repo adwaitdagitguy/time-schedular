@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScheduleOptimizer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">meeting-scheduler-backend</a> &gt; <a href="index.source.html" class="el_package">com.meetingscheduler.algorithm</a> &gt; <span class="el_source">ScheduleOptimizer.java</span></div><h1>ScheduleOptimizer.java</h1><pre class="source lang-java linenums">package com.meetingscheduler.algorithm;
+
+import com.meetingscheduler.entity.Meeting;
+import com.meetingscheduler.entity.Availability;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+
+@Component
+<span class="fc" id="L16">@Slf4j</span>
+<span class="fc" id="L17">public class ScheduleOptimizer {</span>
+    
+    // Weights for optimization algorithm - Priority and Deadline are most important
+    private static final double PRIORITY_WEIGHT = 0.6;    // 60% - Most important
+    private static final double DEADLINE_WEIGHT = 0.3;    // 30% - Urgent deadlines first
+    private static final double DURATION_WEIGHT = 0.1;    // 10% - Shorter meetings preferred
+    
+    public OptimizedScheduleResult optimizeSchedule(List&lt;Meeting&gt; meetings, List&lt;Availability&gt; availabilities) {
+<span class="fc" id="L25">        log.info(&quot;\n&quot; + &quot;=&quot;.repeat(80));</span>
+<span class="fc" id="L26">        log.info(&quot;🚀 SCHEDULE OPTIMIZATION STARTED&quot;);</span>
+<span class="fc" id="L27">        log.info(&quot;=&quot;.repeat(80));</span>
+<span class="fc" id="L28">        log.info(&quot;📊 INPUT PARAMETERS:&quot;);</span>
+<span class="fc" id="L29">        log.info(&quot;   • Meetings to schedule: {}&quot;, meetings.size());</span>
+<span class="fc" id="L30">        log.info(&quot;   • Availability slots: {}&quot;, availabilities.size());</span>
+<span class="fc" id="L31">        log.info(&quot;&quot;);</span>
+        
+        // Print all meetings with details
+<span class="fc" id="L34">        log.info(&quot;📋 MEETINGS TO SCHEDULE:&quot;);</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">        for (int i = 0; i &lt; meetings.size(); i++) {</span>
+<span class="fc" id="L36">            Meeting m = meetings.get(i);</span>
+<span class="fc" id="L37">            double score = calculateMeetingScore(m);</span>
+<span class="fc" id="L38">            log.info(&quot;   {}. {}&quot;, i + 1, m.getTitle());</span>
+<span class="fc" id="L39">            log.info(&quot;      Priority: {}/10 | Duration: {} min | Deadline: {} | Score: {:.3f}&quot;,</span>
+<span class="fc" id="L40">                m.getPriority(), m.getDurationMinutes(), m.getDeadline(), String.format(&quot;%.3f&quot;, score));</span>
+        }
+<span class="fc" id="L42">        log.info(&quot;&quot;);</span>
+        
+        // Print all availability slots
+<span class="fc" id="L45">        System.out.println(&quot;⏰ AVAILABILITY SLOTS:&quot;);</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        for (int i = 0; i &lt; availabilities.size(); i++) {</span>
+<span class="fc" id="L47">            Availability a = availabilities.get(i);</span>
+<span class="fc" id="L48">            long hours = ChronoUnit.HOURS.between(a.getStartTime(), a.getEndTime());</span>
+<span class="fc" id="L49">            System.out.println(String.format(&quot;   %d. %s → %s (%d hours)&quot;,</span>
+<span class="fc" id="L50">                i + 1, a.getStartTime(), a.getEndTime(), hours));</span>
+        }
+<span class="fc" id="L52">        System.out.println();</span>
+        
+<span class="fc" id="L54">        List&lt;ScheduledMeeting&gt; scheduledMeetings = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L55">        List&lt;Meeting&gt; remainingMeetings = new ArrayList&lt;&gt;(meetings);</span>
+        
+        // Calculate scores for all meetings first
+<span class="fc" id="L58">        System.out.println(&quot;📊 CALCULATING SCORES FOR ALL MEETINGS:&quot;);</span>
+<span class="fc" id="L59">        System.out.println(&quot;-&quot;.repeat(80));</span>
+<span class="fc" id="L60">        Map&lt;Meeting, Double&gt; meetingScores = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        for (Meeting m : remainingMeetings) {</span>
+<span class="fc" id="L62">            double score = calculateMeetingScore(m);</span>
+<span class="fc" id="L63">            meetingScores.put(m, score);</span>
+<span class="fc" id="L64">        }</span>
+<span class="fc" id="L65">        System.out.println();</span>
+        
+        // Sort meetings by priority score (highest first) - GREEDY APPROACH
+        // This ensures the MOST IMPORTANT meeting is scheduled FIRST
+<span class="fc" id="L69">        remainingMeetings.sort((a, b) -&gt; {</span>
+<span class="fc" id="L70">            double scoreA = meetingScores.get(a);</span>
+<span class="fc" id="L71">            double scoreB = meetingScores.get(b);</span>
+<span class="fc" id="L72">            int comparison = Double.compare(scoreB, scoreA); // Descending order (highest first)</span>
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">            if (comparison == 0) {</span>
+                // If scores are equal, prioritize by deadline (earlier deadline first)
+<span class="nc bnc" id="L75" title="All 4 branches missed.">                if (a.getDeadline() != null &amp;&amp; b.getDeadline() != null) {</span>
+<span class="nc" id="L76">                    comparison = a.getDeadline().compareTo(b.getDeadline());</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">                } else if (a.getDeadline() != null) {</span>
+<span class="nc" id="L78">                    comparison = -1; // a has deadline, b doesn't - a comes first</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">                } else if (b.getDeadline() != null) {</span>
+<span class="nc" id="L80">                    comparison = 1; // b has deadline, a doesn't - b comes first</span>
+                }
+            }
+<span class="fc" id="L83">            return comparison;</span>
+        });
+        
+<span class="fc" id="L86">        log.info(&quot;🔢 MEETINGS SORTED BY PRIORITY (HIGHEST SCORE FIRST - WILL BE SCHEDULED IN THIS ORDER):&quot;);</span>
+<span class="fc" id="L87">        log.info(&quot;-&quot;.repeat(80));</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">        for (int i = 0; i &lt; remainingMeetings.size(); i++) {</span>
+<span class="fc" id="L89">            Meeting m = remainingMeetings.get(i);</span>
+<span class="fc" id="L90">            double score = meetingScores.get(m);</span>
+<span class="fc" id="L91">            log.info(&quot;   🥇 #{}: {}&quot;, i + 1, m.getTitle());</span>
+<span class="fc" id="L92">            log.info(&quot;      Priority: {}/10 | Deadline: {} | Duration: {} min | TOTAL SCORE: {}&quot;,</span>
+<span class="fc" id="L93">                m.getPriority(), m.getDeadline(), m.getDurationMinutes(), String.format(&quot;%.3f&quot;, score));</span>
+        }
+<span class="fc" id="L95">        log.info(&quot;&quot;);</span>
+        
+<span class="fc" id="L97">        List&lt;OccupiedSlot&gt; occupiedSlots = new ArrayList&lt;&gt;();</span>
+        
+<span class="fc" id="L99">        System.out.println(&quot;📅 SCHEDULING PROCESS:&quot;);</span>
+<span class="fc" id="L100">        System.out.println(&quot;-&quot;.repeat(80));</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        for (int i = 0; i &lt; remainingMeetings.size(); i++) {</span>
+<span class="fc" id="L102">            Meeting meeting = remainingMeetings.get(i);</span>
+<span class="fc" id="L103">            System.out.println(String.format(&quot;\n[%d/%d] Processing: %s&quot;, i + 1, remainingMeetings.size(), meeting.getTitle()));</span>
+<span class="fc" id="L104">            System.out.println(String.format(&quot;   Priority: %d | Duration: %d min | Deadline: %s&quot;,</span>
+<span class="fc" id="L105">                meeting.getPriority(), meeting.getDurationMinutes(), meeting.getDeadline()));</span>
+            
+<span class="fc" id="L107">            ScheduledMeeting bestSlot = findBestSlot(meeting, availabilities, occupiedSlots);</span>
+            
+<span class="fc bfc" id="L109" title="All 2 branches covered.">            if (bestSlot != null) {</span>
+<span class="fc" id="L110">                log.info(&quot;   ✅ SCHEDULED: {} → {}&quot;, bestSlot.getScheduledStart(), bestSlot.getScheduledEnd());</span>
+<span class="fc" id="L111">                log.info(&quot;   🎯 MEETING SCORE: {} (Priority: {}, Deadline: {}, Duration: {} min)&quot;,</span>
+<span class="fc" id="L112">                    String.format(&quot;%.3f&quot;, bestSlot.getScore()), meeting.getPriority(), meeting.getDeadline(), meeting.getDurationMinutes());</span>
+<span class="fc" id="L113">                scheduledMeetings.add(bestSlot);</span>
+<span class="fc" id="L114">                occupiedSlots.add(new OccupiedSlot(</span>
+<span class="fc" id="L115">                    bestSlot.getScheduledStart(), </span>
+<span class="fc" id="L116">                    bestSlot.getScheduledEnd()</span>
+                ));
+            } else {
+<span class="fc" id="L119">                System.out.println(&quot;   ❌ FAILED: Could not find suitable time slot&quot;);</span>
+            }
+        }
+        
+<span class="fc" id="L123">        double overallScore = calculateOverallScore(scheduledMeetings);</span>
+<span class="fc" id="L124">        System.out.println(&quot;\n&quot; + &quot;=&quot;.repeat(80));</span>
+<span class="fc" id="L125">        System.out.println(&quot;✅ OPTIMIZATION COMPLETED&quot;);</span>
+<span class="fc" id="L126">        System.out.println(&quot;=&quot;.repeat(80));</span>
+<span class="fc" id="L127">        System.out.println(&quot;📊 RESULTS SUMMARY:&quot;);</span>
+<span class="fc" id="L128">        System.out.println(String.format(&quot;   • Successfully scheduled: %d/%d meetings&quot;, scheduledMeetings.size(), meetings.size()));</span>
+<span class="fc" id="L129">        System.out.println(String.format(&quot;   • Overall optimization score (average): %.3f&quot;, overallScore));</span>
+<span class="fc" id="L130">        System.out.println();</span>
+        
+        // Print individual scores prominently
+<span class="fc" id="L133">        log.info(&quot;🎯 INDIVIDUAL MEETING SCORES (as calculated by algorithm):&quot;);</span>
+<span class="fc" id="L134">        log.info(&quot;-&quot;.repeat(80));</span>
+<span class="fc bfc" id="L135" title="All 2 branches covered.">        for (int i = 0; i &lt; scheduledMeetings.size(); i++) {</span>
+<span class="fc" id="L136">            ScheduledMeeting sm = scheduledMeetings.get(i);</span>
+<span class="fc" id="L137">            log.info(&quot;   #{}: {}&quot;, i + 1, sm.getMeeting().getTitle());</span>
+<span class="fc" id="L138">            log.info(&quot;        Score: {} | Priority: {}/10 | Duration: {} min&quot;, </span>
+<span class="fc" id="L139">                String.format(&quot;%.3f&quot;, sm.getScore()), sm.getMeeting().getPriority(), sm.getMeeting().getDurationMinutes());</span>
+        }
+<span class="fc" id="L141">        log.info(&quot;-&quot;.repeat(80));</span>
+<span class="fc" id="L142">        log.info(&quot;&quot;);</span>
+        
+<span class="fc bfc" id="L144" title="All 2 branches covered.">        if (!scheduledMeetings.isEmpty()) {</span>
+<span class="fc" id="L145">            System.out.println(&quot;📅 FINAL SCHEDULE WITH SCORES:&quot;);</span>
+<span class="fc" id="L146">            System.out.println(&quot;-&quot;.repeat(80));</span>
+<span class="fc bfc" id="L147" title="All 2 branches covered.">            for (int i = 0; i &lt; scheduledMeetings.size(); i++) {</span>
+<span class="fc" id="L148">                ScheduledMeeting sm = scheduledMeetings.get(i);</span>
+<span class="fc" id="L149">                System.out.println(String.format(&quot;   🥇 #%d: %s&quot;, i + 1, sm.getMeeting().getTitle()));</span>
+<span class="fc" id="L150">                System.out.println(String.format(&quot;      ⏰ Time: %s → %s&quot;, sm.getScheduledStart(), sm.getScheduledEnd()));</span>
+<span class="fc" id="L151">                System.out.println(String.format(&quot;      📊 SCORE: %.3f&quot;, sm.getScore()));</span>
+<span class="fc" id="L152">                System.out.println(String.format(&quot;      📋 Details: Priority=%d/10 | Duration=%d min | Deadline=%s&quot;,</span>
+<span class="fc" id="L153">                    sm.getMeeting().getPriority(), sm.getMeeting().getDurationMinutes(), sm.getMeeting().getDeadline()));</span>
+<span class="fc" id="L154">                System.out.println();</span>
+            }
+        }
+        
+<span class="fc" id="L158">        System.out.println(&quot;=&quot;.repeat(80) + &quot;\n&quot;);</span>
+        
+<span class="fc" id="L160">        return new OptimizedScheduleResult(scheduledMeetings, overallScore);</span>
+    }
+    
+    private ScheduledMeeting findBestSlot(Meeting meeting, List&lt;Availability&gt; availabilities, List&lt;OccupiedSlot&gt; occupiedSlots) {
+<span class="fc" id="L164">        System.out.println(&quot;   🔍 Searching for best time slot...&quot;);</span>
+        
+<span class="fc" id="L166">        ScheduledMeeting bestSlot = null;</span>
+<span class="fc" id="L167">        double bestScore = Double.MIN_VALUE;</span>
+<span class="fc" id="L168">        int slotsChecked = 0;</span>
+<span class="fc" id="L169">        int conflictsFound = 0;</span>
+        
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        for (int i = 0; i &lt; availabilities.size(); i++) {</span>
+<span class="fc" id="L172">            Availability availability = availabilities.get(i);</span>
+<span class="fc" id="L173">            System.out.println(String.format(&quot;   📍 Checking availability slot %d/%d: %s → %s&quot;,</span>
+<span class="fc" id="L174">                i + 1, availabilities.size(), availability.getStartTime(), availability.getEndTime()));</span>
+            
+<span class="fc" id="L176">            LocalDateTime currentTime = availability.getStartTime();</span>
+            
+            // Try every 15-minute slot within availability
+<span class="fc bfc" id="L179" title="All 2 branches covered.">            while (currentTime.plusMinutes(meeting.getDurationMinutes()).isBefore(availability.getEndTime()) ||</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">                   currentTime.plusMinutes(meeting.getDurationMinutes()).equals(availability.getEndTime())) {</span>
+                
+                // Safety check to prevent infinite loop
+<span class="pc bpc" id="L183" title="1 of 2 branches missed.">                if (currentTime.isAfter(availability.getEndTime())) {</span>
+<span class="nc" id="L184">                    break;</span>
+                }
+                
+<span class="fc" id="L187">                LocalDateTime proposedEnd = currentTime.plusMinutes(meeting.getDurationMinutes());</span>
+<span class="fc" id="L188">                slotsChecked++;</span>
+                
+                // Check if meeting ends before deadline
+<span class="fc bfc" id="L191" title="All 2 branches covered.">                if (proposedEnd.isAfter(meeting.getDeadline())) {</span>
+<span class="fc" id="L192">                    System.out.println(String.format(&quot;      ⏰ Slot %s → %s: ❌ Ends after deadline (%s)&quot;,</span>
+<span class="fc" id="L193">                        currentTime, proposedEnd, meeting.getDeadline()));</span>
+<span class="fc" id="L194">                    break;</span>
+                }
+                
+                // Check for conflicts with already scheduled meetings
+<span class="fc bfc" id="L198" title="All 2 branches covered.">                if (!hasConflict(currentTime, proposedEnd, occupiedSlots)) {</span>
+<span class="fc" id="L199">                    double score = calculateSchedulingScore(meeting, currentTime);</span>
+                    
+                    // Calculate score breakdown for logging
+<span class="fc" id="L202">                    double priorityScore = (meeting.getPriority() / 10.0) * PRIORITY_WEIGHT;</span>
+<span class="fc" id="L203">                    long hoursUntilDeadline = ChronoUnit.HOURS.between(currentTime, meeting.getDeadline());</span>
+<span class="fc" id="L204">                    double deadlineScore = Math.max(0, 1.0 - (hoursUntilDeadline / 168.0)) * DEADLINE_WEIGHT;</span>
+<span class="fc" id="L205">                    double durationScore = (1.0 - Math.min(meeting.getDurationMinutes() / 240.0, 1.0)) * DURATION_WEIGHT;</span>
+                    
+<span class="fc" id="L207">                    System.out.println(String.format(&quot;      ✅ Slot %s → %s: Available (Score: %.3f)&quot;,</span>
+<span class="fc" id="L208">                        currentTime, proposedEnd, score));</span>
+<span class="fc" id="L209">                    System.out.println(String.format(&quot;         Breakdown: Priority=%.3f, Deadline=%.3f, Duration=%.3f&quot;,</span>
+<span class="fc" id="L210">                        priorityScore, deadlineScore, durationScore));</span>
+                    
+<span class="fc bfc" id="L212" title="All 2 branches covered.">                    if (score &gt; bestScore) {</span>
+<span class="fc" id="L213">                        bestScore = score;</span>
+<span class="fc" id="L214">                        bestSlot = new ScheduledMeeting(</span>
+                            meeting,
+                            currentTime,
+                            proposedEnd,
+                            score
+                        );
+<span class="fc" id="L220">                        System.out.println(String.format(&quot;         ⭐ NEW BEST SLOT! (Previous best: %.3f)&quot;, bestScore));</span>
+                    }
+<span class="fc" id="L222">                } else {</span>
+<span class="fc" id="L223">                    conflictsFound++;</span>
+<span class="fc" id="L224">                    System.out.println(String.format(&quot;      ⚠️  Slot %s → %s: Conflict with existing meeting&quot;,</span>
+                        currentTime, proposedEnd));
+                }
+                
+                // Move to next 15-minute slot
+<span class="fc" id="L229">                currentTime = currentTime.plusMinutes(15);</span>
+<span class="fc" id="L230">            }</span>
+        }
+        
+<span class="fc" id="L233">        System.out.println(String.format(&quot;   📊 Slot search complete: Checked %d slots, Found %d conflicts&quot;,</span>
+<span class="fc" id="L234">            slotsChecked, conflictsFound));</span>
+        
+<span class="fc bfc" id="L236" title="All 2 branches covered.">        if (bestSlot != null) {</span>
+<span class="fc" id="L237">            System.out.println(String.format(&quot;   🎯 BEST SLOT SELECTED: %s → %s (Final Score: %.3f)&quot;,</span>
+<span class="fc" id="L238">                bestSlot.getScheduledStart(), bestSlot.getScheduledEnd(), bestSlot.getScore()));</span>
+        } else {
+<span class="fc" id="L240">            System.out.println(&quot;   ❌ NO SUITABLE SLOT FOUND&quot;);</span>
+        }
+        
+<span class="fc" id="L243">        return bestSlot;</span>
+    }
+    
+    private boolean hasConflict(LocalDateTime start, LocalDateTime end, List&lt;OccupiedSlot&gt; occupiedSlots) {
+<span class="fc" id="L247">        return occupiedSlots.stream().anyMatch(occupied -&gt; </span>
+<span class="pc bpc" id="L248" title="1 of 4 branches missed.">            !(end.isBefore(occupied.getStart()) || start.isAfter(occupied.getEnd()))</span>
+        );
+    }
+    
+    private double calculateMeetingScore(Meeting meeting) {
+<span class="fc" id="L253">        LocalDateTime now = LocalDateTime.now();</span>
+<span class="fc" id="L254">        LocalDateTime deadline = meeting.getDeadline();</span>
+        
+        // Priority score (normalized to 0-1) - Higher priority = higher score
+        // Priority 10 = 1.0, Priority 1 = 0.1
+<span class="fc" id="L258">        double priorityScore = meeting.getPriority() / 10.0;</span>
+        
+        // Deadline urgency score - URGENT deadlines (closer) = HIGHER score
+        // Formula: The closer the deadline, the higher the score
+        // If deadline is in 1 hour = 1.0, if deadline is in 1 week = 0.0
+<span class="fc" id="L263">        double deadlineScore = 0.0;</span>
+<span class="pc bpc" id="L264" title="2 of 4 branches missed.">        if (deadline != null &amp;&amp; deadline.isAfter(now)) {</span>
+<span class="fc" id="L265">            long hoursUntilDeadline = ChronoUnit.HOURS.between(now, deadline);</span>
+            // Normalize: 0 hours = 1.0, 168 hours (1 week) = 0.0
+            // Use exponential decay for urgency - very urgent deadlines get much higher scores
+<span class="fc bfc" id="L268" title="All 2 branches covered.">            if (hoursUntilDeadline &lt;= 24) {</span>
+                // Within 24 hours - very urgent (0.9 to 1.0)
+<span class="fc" id="L270">                deadlineScore = 0.9 + (0.1 * (1.0 - (hoursUntilDeadline / 24.0)));</span>
+<span class="pc bpc" id="L271" title="1 of 2 branches missed.">            } else if (hoursUntilDeadline &lt;= 168) {</span>
+                // Within 1 week - urgent (0.5 to 0.9)
+<span class="fc" id="L273">                deadlineScore = 0.5 + (0.4 * (1.0 - ((hoursUntilDeadline - 24) / 144.0)));</span>
+            } else {
+                // More than 1 week - less urgent (0.0 to 0.5)
+<span class="nc" id="L276">                deadlineScore = Math.max(0.0, 0.5 * (1.0 - ((hoursUntilDeadline - 168) / 336.0)));</span>
+            }
+<span class="pc bnc" id="L278" title="All 4 branches missed.">        } else if (deadline != null &amp;&amp; deadline.isBefore(now)) {</span>
+            // Deadline already passed - very urgent (but should have been scheduled already)
+<span class="nc" id="L280">            deadlineScore = 1.0;</span>
+        }
+        
+        // Duration score - SHORTER meetings = HIGHER score
+        // 15 min = 1.0, 240 min (4 hours) = 0.0
+<span class="fc" id="L285">        double durationScore = 1.0 - Math.min(meeting.getDurationMinutes() / 240.0, 1.0);</span>
+        
+        // Calculate weighted total score
+<span class="fc" id="L288">        double totalScore = (priorityScore * PRIORITY_WEIGHT) + </span>
+                           (deadlineScore * DEADLINE_WEIGHT) + 
+                           (durationScore * DURATION_WEIGHT);
+        
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">        long hoursUntilDeadline = deadline != null ? ChronoUnit.HOURS.between(now, deadline) : 0;</span>
+        
+<span class="fc" id="L294">        log.info(&quot;      📊 SCORE CALCULATION for '{}':&quot;, meeting.getTitle());</span>
+<span class="fc" id="L295">        log.info(&quot;         🎯 Priority: {}/10 → Score: {} × Weight: {}% = {}&quot;, </span>
+<span class="fc" id="L296">            meeting.getPriority(), String.format(&quot;%.3f&quot;, priorityScore), (int)(PRIORITY_WEIGHT * 100), String.format(&quot;%.3f&quot;, priorityScore * PRIORITY_WEIGHT));</span>
+<span class="fc" id="L297">        log.info(&quot;         ⏰ Deadline: {} ({} hours away) → Score: {} × Weight: {}% = {}&quot;, </span>
+<span class="fc" id="L298">            deadline, hoursUntilDeadline, String.format(&quot;%.3f&quot;, deadlineScore), (int)(DEADLINE_WEIGHT * 100), String.format(&quot;%.3f&quot;, deadlineScore * DEADLINE_WEIGHT));</span>
+<span class="fc" id="L299">        log.info(&quot;         ⏱️  Duration: {} min → Score: {} × Weight: {}% = {}&quot;, </span>
+<span class="fc" id="L300">            meeting.getDurationMinutes(), String.format(&quot;%.3f&quot;, durationScore), (int)(DURATION_WEIGHT * 100), String.format(&quot;%.3f&quot;, durationScore * DURATION_WEIGHT));</span>
+<span class="fc" id="L301">        log.info(&quot;         ════════════════════════════════════════════════════════&quot;);</span>
+<span class="fc" id="L302">        log.info(&quot;         🏆 TOTAL SCORE: {}&quot;, String.format(&quot;%.3f&quot;, totalScore));</span>
+<span class="fc" id="L303">        log.info(&quot;&quot;);</span>
+        
+<span class="fc" id="L305">        return totalScore;</span>
+    }
+    
+    private double calculateSchedulingScore(Meeting meeting, LocalDateTime scheduledTime) {
+<span class="fc" id="L309">        LocalDateTime deadline = meeting.getDeadline();</span>
+        
+        // Priority score (normalized to 0-1) - Higher priority = higher score
+<span class="fc" id="L312">        double priorityScore = meeting.getPriority() / 10.0;</span>
+        
+        // Deadline urgency score based on scheduled time
+        // Higher score if scheduled time is closer to deadline (but before it)
+<span class="fc" id="L316">        double deadlineScore = 0.0;</span>
+<span class="pc bpc" id="L317" title="2 of 4 branches missed.">        if (deadline != null &amp;&amp; scheduledTime.isBefore(deadline)) {</span>
+<span class="fc" id="L318">            long hoursUntilDeadline = ChronoUnit.HOURS.between(scheduledTime, deadline);</span>
+            // Same formula as calculateMeetingScore - urgent deadlines get higher scores
+<span class="pc bpc" id="L320" title="1 of 2 branches missed.">            if (hoursUntilDeadline &lt;= 24) {</span>
+<span class="fc" id="L321">                deadlineScore = 0.9 + (0.1 * (1.0 - (hoursUntilDeadline / 24.0)));</span>
+<span class="nc bnc" id="L322" title="All 2 branches missed.">            } else if (hoursUntilDeadline &lt;= 168) {</span>
+<span class="nc" id="L323">                deadlineScore = 0.5 + (0.4 * (1.0 - ((hoursUntilDeadline - 24) / 144.0)));</span>
+            } else {
+<span class="nc" id="L325">                deadlineScore = Math.max(0.0, 0.5 * (1.0 - ((hoursUntilDeadline - 168) / 336.0)));</span>
+            }
+<span class="pc bnc" id="L327" title="All 4 branches missed.">        } else if (deadline != null &amp;&amp; scheduledTime.isAfter(deadline)) {</span>
+            // Scheduled after deadline - bad, but still give some score
+<span class="nc" id="L329">            deadlineScore = 0.1;</span>
+        }
+        
+        // Duration score - shorter meetings = higher score
+<span class="fc" id="L333">        double durationScore = 1.0 - Math.min(meeting.getDurationMinutes() / 240.0, 1.0);</span>
+        
+<span class="fc" id="L335">        return (priorityScore * PRIORITY_WEIGHT) + </span>
+               (deadlineScore * DEADLINE_WEIGHT) + 
+               (durationScore * DURATION_WEIGHT);
+    }
+    
+    private double calculateOverallScore(List&lt;ScheduledMeeting&gt; scheduledMeetings) {
+<span class="fc" id="L341">        return scheduledMeetings.stream()</span>
+<span class="fc" id="L342">                .mapToDouble(ScheduledMeeting::getScore)</span>
+<span class="fc" id="L343">                .average()</span>
+<span class="fc" id="L344">                .orElse(0.0);</span>
+    }
+    
+<span class="nc bnc" id="L347" title="All 32 branches missed.">    @Data</span>
+<span class="nc" id="L348">    @NoArgsConstructor</span>
+<span class="fc" id="L349">    @AllArgsConstructor</span>
+    public static class ScheduledMeeting {
+<span class="fc" id="L351">        private Meeting meeting;</span>
+<span class="fc" id="L352">        private LocalDateTime scheduledStart;</span>
+<span class="fc" id="L353">        private LocalDateTime scheduledEnd;</span>
+<span class="fc" id="L354">        private double score;</span>
+    }
+    
+<span class="nc bnc" id="L357" title="All 22 branches missed.">    @Data</span>
+<span class="nc" id="L358">    @NoArgsConstructor</span>
+<span class="fc" id="L359">    @AllArgsConstructor</span>
+    public static class OccupiedSlot {
+<span class="fc" id="L361">        private LocalDateTime start;</span>
+<span class="fc" id="L362">        private LocalDateTime end;</span>
+    }
+    
+<span class="nc bnc" id="L365" title="All 16 branches missed.">    @Data</span>
+<span class="nc" id="L366">    @NoArgsConstructor</span>
+<span class="fc" id="L367">    @AllArgsConstructor</span>
+    public static class OptimizedScheduleResult {
+<span class="fc" id="L369">        private List&lt;ScheduledMeeting&gt; scheduledMeetings;</span>
+<span class="fc" id="L370">        private double optimizationScore; // Changed from overallScore to match frontend</span>
+    }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

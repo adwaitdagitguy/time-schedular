@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UpdateMeetingRequest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">meeting-scheduler-backend</a> &gt; <a href="index.source.html" class="el_package">com.meetingscheduler.dto</a> &gt; <span class="el_source">UpdateMeetingRequest.java</span></div><h1>UpdateMeetingRequest.java</h1><pre class="source lang-java linenums">package com.meetingscheduler.dto;
+
+import com.meetingscheduler.entity.Meeting;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+<span class="nc bnc" id="L10" title="All 54 branches missed.">@Data</span>
+public class UpdateMeetingRequest {
+    
+<span class="nc" id="L13">    private String title;</span>
+<span class="nc" id="L14">    private String description;</span>
+    
+    @Min(value = 1, message = &quot;Duration must be at least 1 minute&quot;)
+<span class="nc" id="L17">    private Integer duration;</span>
+    
+    @Min(value = 1, message = &quot;Priority must be at least 1&quot;)
+    @Max(value = 10, message = &quot;Priority must be at most 10&quot;)
+<span class="nc" id="L21">    private Integer priority;</span>
+    
+<span class="nc" id="L23">    private LocalDateTime deadline;</span>
+<span class="nc" id="L24">    private Meeting.MeetingStatus status;</span>
+}
+
+
+
+
+
+
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

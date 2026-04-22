@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">meeting-scheduler-backend</a> &gt; <a href="index.source.html" class="el_package">com.meetingscheduler.controller</a> &gt; <span class="el_source">AuthController.java</span></div><h1>AuthController.java</h1><pre class="source lang-java linenums">package com.meetingscheduler.controller;
+
+import com.meetingscheduler.dto.LoginRequest;
+import com.meetingscheduler.dto.RegisterRequest;
+import com.meetingscheduler.dto.AuthResponse;
+import com.meetingscheduler.entity.User;
+import com.meetingscheduler.service.AuthService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.validation.Valid;
+import java.util.Optional;
+
+@RestController
+@RequestMapping(&quot;/api/auth&quot;)
+<span class="nc" id="L18">@RequiredArgsConstructor</span>
+<span class="nc" id="L19">@Slf4j</span>
+@CrossOrigin(origins = &quot;*&quot;)
+public class AuthController {
+    
+    private final AuthService authService;
+    
+    @PostMapping(&quot;/login&quot;)
+    public ResponseEntity&lt;?&gt; login(@Valid @RequestBody LoginRequest loginRequest) {
+<span class="nc" id="L27">        log.info(&quot;Login attempt for email: {}&quot;, loginRequest.getEmail());</span>
+        
+        try {
+<span class="nc" id="L30">            Optional&lt;User&gt; user = authService.authenticate(loginRequest.getEmail(), loginRequest.getPassword());</span>
+            
+<span class="nc bnc" id="L32" title="All 2 branches missed.">            if (user.isPresent()) {</span>
+<span class="nc" id="L33">                AuthResponse response = new AuthResponse();</span>
+<span class="nc" id="L34">                response.setUserId(user.get().getId());</span>
+<span class="nc" id="L35">                response.setEmail(user.get().getEmail());</span>
+<span class="nc" id="L36">                response.setFullName(user.get().getFullName());</span>
+<span class="nc" id="L37">                response.setRole(user.get().getRole());</span>
+<span class="nc" id="L38">                response.setMessage(&quot;Login successful&quot;);</span>
+                
+<span class="nc" id="L40">                return ResponseEntity.ok(response);</span>
+            } else {
+<span class="nc" id="L42">                return ResponseEntity.badRequest().body(&quot;Invalid credentials&quot;);</span>
+            }
+<span class="nc" id="L44">        } catch (Exception e) {</span>
+<span class="nc" id="L45">            log.error(&quot;Login error: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L46">            return ResponseEntity.internalServerError().body(&quot;Login failed: &quot; + e.getMessage());</span>
+        }
+    }
+    
+    @PostMapping(&quot;/register&quot;)
+    public ResponseEntity&lt;?&gt; register(@Valid @RequestBody RegisterRequest registerRequest) {
+<span class="nc" id="L52">        log.info(&quot;Registration attempt for email: {}&quot;, registerRequest.getEmail());</span>
+        
+        try {
+            // Parse role to lowercase to match enum
+<span class="nc" id="L56">            User.UserRole userRole = User.UserRole.valueOf(registerRequest.getRole().toLowerCase());</span>
+            
+<span class="nc" id="L58">            User savedUser = authService.register(</span>
+<span class="nc" id="L59">                registerRequest.getEmail(),</span>
+<span class="nc" id="L60">                registerRequest.getPassword(),</span>
+<span class="nc" id="L61">                registerRequest.getFullName(),</span>
+                userRole
+            );
+            
+<span class="nc" id="L65">            AuthResponse response = new AuthResponse();</span>
+<span class="nc" id="L66">            response.setUserId(savedUser.getId());</span>
+<span class="nc" id="L67">            response.setEmail(savedUser.getEmail());</span>
+<span class="nc" id="L68">            response.setFullName(savedUser.getFullName());</span>
+<span class="nc" id="L69">            response.setRole(savedUser.getRole());</span>
+<span class="nc" id="L70">            response.setMessage(&quot;Registration successful&quot;);</span>
+            
+<span class="nc" id="L72">            return ResponseEntity.ok(response);</span>
+<span class="nc" id="L73">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L74">            log.error(&quot;Registration error: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L75">            return ResponseEntity.badRequest().body(e.getMessage());</span>
+<span class="nc" id="L76">        } catch (Exception e) {</span>
+<span class="nc" id="L77">            log.error(&quot;Registration error: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L78">            return ResponseEntity.internalServerError().body(&quot;Registration failed: &quot; + e.getMessage());</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

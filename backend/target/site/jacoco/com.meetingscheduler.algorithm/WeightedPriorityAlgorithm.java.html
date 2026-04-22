@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WeightedPriorityAlgorithm.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">meeting-scheduler-backend</a> &gt; <a href="index.source.html" class="el_package">com.meetingscheduler.algorithm</a> &gt; <span class="el_source">WeightedPriorityAlgorithm.java</span></div><h1>WeightedPriorityAlgorithm.java</h1><pre class="source lang-java linenums">package com.meetingscheduler.algorithm;
+
+import com.meetingscheduler.entity.Meeting;
+import com.meetingscheduler.entity.Schedule;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Component
+<span class="nc" id="L16">public class WeightedPriorityAlgorithm {</span>
+    
+    private static final double PRIORITY_WEIGHT = 0.4;
+    private static final double DEADLINE_WEIGHT = 0.4;
+    private static final double DURATION_WEIGHT = 0.2;
+    
+    public OptimizedScheduleResult optimizeSchedule(List&lt;Meeting&gt; meetings, 
+                                                   List&lt;AvailabilitySlot&gt; availabilitySlots) {
+        
+<span class="nc" id="L25">        List&lt;ScheduledMeeting&gt; scheduledMeetings = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L26">        List&lt;Meeting&gt; remainingMeetings = new ArrayList&lt;&gt;(meetings);</span>
+        
+        // Sort meetings by priority score (highest first)
+<span class="nc" id="L29">        remainingMeetings.sort((a, b) -&gt; Double.compare(calculateWeight(b), calculateWeight(a)));</span>
+        
+<span class="nc" id="L31">        List&lt;OccupiedSlot&gt; occupiedSlots = new ArrayList&lt;&gt;();</span>
+        
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        for (Meeting meeting : remainingMeetings) {</span>
+<span class="nc" id="L34">            ScheduledMeeting bestSlot = findBestSlot(meeting, availabilitySlots, occupiedSlots);</span>
+            
+<span class="nc bnc" id="L36" title="All 2 branches missed.">            if (bestSlot != null) {</span>
+<span class="nc" id="L37">                scheduledMeetings.add(bestSlot);</span>
+<span class="nc" id="L38">                occupiedSlots.add(new OccupiedSlot(</span>
+<span class="nc" id="L39">                    bestSlot.getScheduledStart(), </span>
+<span class="nc" id="L40">                    bestSlot.getScheduledEnd()</span>
+                ));
+            }
+<span class="nc" id="L43">        }</span>
+        
+<span class="nc" id="L45">        return new OptimizedScheduleResult(scheduledMeetings, calculateOptimizationScore(scheduledMeetings));</span>
+    }
+    
+    private ScheduledMeeting findBestSlot(Meeting meeting, 
+                                        List&lt;AvailabilitySlot&gt; availabilitySlots, 
+                                        List&lt;OccupiedSlot&gt; occupiedSlots) {
+        
+<span class="nc" id="L52">        ScheduledMeeting bestSlot = null;</span>
+<span class="nc" id="L53">        double bestScore = Double.MIN_VALUE;</span>
+        
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        for (AvailabilitySlot slot : availabilitySlots) {</span>
+<span class="nc" id="L56">            LocalDateTime currentTime = slot.getStartTime();</span>
+            
+<span class="nc bnc" id="L58" title="All 2 branches missed.">            while (currentTime.plusMinutes(meeting.getDuration()).isBefore(slot.getEndTime()) ||</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">                   currentTime.plusMinutes(meeting.getDuration()).equals(slot.getEndTime())) {</span>
+                
+<span class="nc" id="L61">                LocalDateTime proposedEnd = currentTime.plusMinutes(meeting.getDuration());</span>
+                
+                // Check if meeting ends before deadline
+<span class="nc bnc" id="L64" title="All 4 branches missed.">                if (meeting.getDeadline() != null &amp;&amp; proposedEnd.isAfter(meeting.getDeadline())) {</span>
+<span class="nc" id="L65">                    break;</span>
+                }
+                
+                // Check for conflicts
+<span class="nc bnc" id="L69" title="All 2 branches missed.">                if (!hasConflict(currentTime, proposedEnd, occupiedSlots)) {</span>
+<span class="nc" id="L70">                    double score = calculateSchedulingScore(meeting, currentTime);</span>
+                    
+<span class="nc bnc" id="L72" title="All 2 branches missed.">                    if (score &gt; bestScore) {</span>
+<span class="nc" id="L73">                        bestScore = score;</span>
+<span class="nc" id="L74">                        bestSlot = new ScheduledMeeting(</span>
+                            meeting,
+                            currentTime,
+                            proposedEnd,
+                            score
+                        );
+                    }
+                }
+                
+                // Move to next 15-minute slot
+<span class="nc" id="L84">                currentTime = currentTime.plusMinutes(15);</span>
+<span class="nc" id="L85">            }</span>
+<span class="nc" id="L86">        }</span>
+        
+<span class="nc" id="L88">        return bestSlot;</span>
+    }
+    
+    private boolean hasConflict(LocalDateTime start, LocalDateTime end, List&lt;OccupiedSlot&gt; occupiedSlots) {
+<span class="nc" id="L92">        return occupiedSlots.stream().anyMatch(occupied -&gt; </span>
+<span class="nc bnc" id="L93" title="All 4 branches missed.">            !(end.isBefore(occupied.getStart()) || start.isAfter(occupied.getEnd()))</span>
+        );
+    }
+    
+    public double calculateWeight(Meeting meeting) {
+<span class="nc" id="L98">        LocalDateTime now = LocalDateTime.now();</span>
+<span class="nc" id="L99">        LocalDateTime deadline = meeting.getDeadline();</span>
+        
+<span class="nc" id="L101">        double priorityScore = meeting.getPriority() / 10.0;</span>
+<span class="nc" id="L102">        double deadlineScore = 0.0;</span>
+<span class="nc" id="L103">        double durationScore = 1.0 - Math.min(meeting.getDuration() / 240.0, 1.0);</span>
+        
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        if (deadline != null) {</span>
+<span class="nc" id="L106">            long hoursUntilDeadline = ChronoUnit.HOURS.between(now, deadline);</span>
+<span class="nc" id="L107">            deadlineScore = Math.max(0, 1.0 - (hoursUntilDeadline / 720.0)); // 30 days max</span>
+        }
+        
+<span class="nc" id="L110">        return (priorityScore * PRIORITY_WEIGHT) + </span>
+               (deadlineScore * DEADLINE_WEIGHT) + 
+               (durationScore * DURATION_WEIGHT);
+    }
+    
+    private double calculateSchedulingScore(Meeting meeting, LocalDateTime scheduledTime) {
+<span class="nc" id="L116">        LocalDateTime deadline = meeting.getDeadline();</span>
+        
+<span class="nc" id="L118">        double priorityScore = meeting.getPriority() / 10.0;</span>
+<span class="nc" id="L119">        double deadlineScore = 0.0;</span>
+<span class="nc" id="L120">        double durationScore = 1.0 - Math.min(meeting.getDuration() / 240.0, 1.0);</span>
+        
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (deadline != null) {</span>
+<span class="nc" id="L123">            long hoursUntilDeadline = ChronoUnit.HOURS.between(scheduledTime, deadline);</span>
+<span class="nc" id="L124">            deadlineScore = Math.max(0, 1.0 - (hoursUntilDeadline / 720.0));</span>
+        }
+        
+<span class="nc" id="L127">        return (priorityScore * PRIORITY_WEIGHT) + </span>
+               (deadlineScore * DEADLINE_WEIGHT) + 
+               (durationScore * DURATION_WEIGHT);
+    }
+    
+    private double calculateOptimizationScore(List&lt;ScheduledMeeting&gt; scheduledMeetings) {
+<span class="nc" id="L133">        return scheduledMeetings.stream()</span>
+<span class="nc" id="L134">                .mapToDouble(ScheduledMeeting::getScore)</span>
+<span class="nc" id="L135">                .average()</span>
+<span class="nc" id="L136">                .orElse(0.0);</span>
+    }
+    
+<span class="nc bnc" id="L139" title="All 22 branches missed.">    @Data</span>
+<span class="nc" id="L140">    @NoArgsConstructor</span>
+<span class="nc" id="L141">    @AllArgsConstructor</span>
+    public static class AvailabilitySlot {
+<span class="nc" id="L143">        private LocalDateTime startTime;</span>
+<span class="nc" id="L144">        private LocalDateTime endTime;</span>
+    }
+    
+<span class="nc bnc" id="L147" title="All 22 branches missed.">    @Data</span>
+<span class="nc" id="L148">    @NoArgsConstructor</span>
+<span class="nc" id="L149">    @AllArgsConstructor</span>
+    public static class OccupiedSlot {
+<span class="nc" id="L151">        private LocalDateTime start;</span>
+<span class="nc" id="L152">        private LocalDateTime end;</span>
+    }
+    
+<span class="nc bnc" id="L155" title="All 32 branches missed.">    @Data</span>
+<span class="nc" id="L156">    @NoArgsConstructor</span>
+<span class="nc" id="L157">    @AllArgsConstructor</span>
+    public static class ScheduledMeeting {
+<span class="nc" id="L159">        private Meeting meeting;</span>
+<span class="nc" id="L160">        private LocalDateTime scheduledStart;</span>
+<span class="nc" id="L161">        private LocalDateTime scheduledEnd;</span>
+<span class="nc" id="L162">        private double score;</span>
+    }
+    
+<span class="nc bnc" id="L165" title="All 16 branches missed.">    @Data</span>
+<span class="nc" id="L166">    @NoArgsConstructor</span>
+<span class="nc" id="L167">    @AllArgsConstructor</span>
+    public static class OptimizedScheduleResult {
+<span class="nc" id="L169">        private List&lt;ScheduledMeeting&gt; scheduledMeetings;</span>
+<span class="nc" id="L170">        private double optimizationScore;</span>
+    }
+}
+
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

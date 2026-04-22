@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">meeting-scheduler-backend</a> &gt; <a href="index.source.html" class="el_package">com.meetingscheduler.service</a> &gt; <span class="el_source">AdminService.java</span></div><h1>AdminService.java</h1><pre class="source lang-java linenums">package com.meetingscheduler.service;
+
+import com.meetingscheduler.entity.Meeting;
+import com.meetingscheduler.entity.User;
+import com.meetingscheduler.repository.MeetingRepository;
+import com.meetingscheduler.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+<span class="nc" id="L18">@RequiredArgsConstructor</span>
+<span class="nc" id="L19">@Slf4j</span>
+public class AdminService {
+    
+    private final UserRepository userRepository;
+    private final MeetingRepository meetingRepository;
+    
+    public List&lt;User&gt; getAllUsers() {
+<span class="nc" id="L26">        log.info(&quot;Fetching all users for admin&quot;);</span>
+<span class="nc" id="L27">        return userRepository.findAll();</span>
+    }
+    
+    @Transactional
+    public User updateUserRole(UUID userId, User.UserRole newRole) {
+<span class="nc" id="L32">        log.info(&quot;Updating user {} role to {}&quot;, userId, newRole);</span>
+        
+<span class="nc" id="L34">        User user = userRepository.findById(userId)</span>
+<span class="nc" id="L35">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;User not found&quot;));</span>
+        
+<span class="nc" id="L37">        user.setRole(newRole);</span>
+<span class="nc" id="L38">        User updatedUser = userRepository.save(user);</span>
+        
+<span class="nc" id="L40">        log.info(&quot;User role updated successfully&quot;);</span>
+<span class="nc" id="L41">        return updatedUser;</span>
+    }
+    
+    @Transactional
+    public void deleteUser(UUID userId) {
+<span class="nc" id="L46">        log.info(&quot;Deleting user: {}&quot;, userId);</span>
+        
+<span class="nc" id="L48">        User user = userRepository.findById(userId)</span>
+<span class="nc" id="L49">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;User not found&quot;));</span>
+        
+        // Prevent deleting admin users
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (user.getRole() == User.UserRole.admin) {</span>
+<span class="nc" id="L53">            throw new IllegalArgumentException(&quot;Cannot delete admin users&quot;);</span>
+        }
+        
+<span class="nc" id="L56">        userRepository.delete(user);</span>
+<span class="nc" id="L57">        log.info(&quot;User deleted successfully&quot;);</span>
+<span class="nc" id="L58">    }</span>
+    
+    public Map&lt;String, Object&gt; getSystemStatistics() {
+<span class="nc" id="L61">        log.info(&quot;Fetching system statistics&quot;);</span>
+        
+<span class="nc" id="L63">        Map&lt;String, Object&gt; stats = new HashMap&lt;&gt;();</span>
+        
+        // User statistics
+<span class="nc" id="L66">        List&lt;User&gt; allUsers = userRepository.findAll();</span>
+<span class="nc" id="L67">        stats.put(&quot;totalUsers&quot;, allUsers.size());</span>
+<span class="nc" id="L68">        stats.put(&quot;activeExecutives&quot;, userRepository.findByRole(User.UserRole.executive).size());</span>
+<span class="nc" id="L69">        stats.put(&quot;activeSecretaries&quot;, userRepository.findByRole(User.UserRole.secretary).size());</span>
+<span class="nc" id="L70">        stats.put(&quot;activeAdmins&quot;, userRepository.findByRole(User.UserRole.admin).size());</span>
+        
+        // Meeting statistics
+<span class="nc" id="L73">        List&lt;Meeting&gt; allMeetings = meetingRepository.findAll();</span>
+<span class="nc" id="L74">        stats.put(&quot;totalMeetings&quot;, allMeetings.size());</span>
+<span class="nc" id="L75">        stats.put(&quot;completedMeetings&quot;, meetingRepository.findByStatus(Meeting.MeetingStatus.completed).size());</span>
+<span class="nc" id="L76">        stats.put(&quot;pendingMeetings&quot;, meetingRepository.findByStatus(Meeting.MeetingStatus.pending).size());</span>
+<span class="nc" id="L77">        stats.put(&quot;scheduledMeetings&quot;, meetingRepository.findByStatus(Meeting.MeetingStatus.scheduled).size());</span>
+        
+        // Calculate average optimization score (placeholder - would need Schedule repository)
+<span class="nc" id="L80">        stats.put(&quot;averageOptimizationScore&quot;, 0.85);</span>
+        
+<span class="nc" id="L82">        log.info(&quot;System statistics calculated: {}&quot;, stats);</span>
+<span class="nc" id="L83">        return stats;</span>
+    }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

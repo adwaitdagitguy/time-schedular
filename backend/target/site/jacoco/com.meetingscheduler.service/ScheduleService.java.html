@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScheduleService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">meeting-scheduler-backend</a> &gt; <a href="index.source.html" class="el_package">com.meetingscheduler.service</a> &gt; <span class="el_source">ScheduleService.java</span></div><h1>ScheduleService.java</h1><pre class="source lang-java linenums">package com.meetingscheduler.service;
+
+import com.meetingscheduler.algorithm.ScheduleOptimizer;
+import com.meetingscheduler.entity.*;
+import com.meetingscheduler.repository.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+<span class="nc" id="L17">@RequiredArgsConstructor</span>
+<span class="nc" id="L18">@Slf4j</span>
+public class ScheduleService {
+    
+    private final ScheduleRepository scheduleRepository;
+    private final MeetingRepository meetingRepository;
+    private final AvailabilityRepository availabilityRepository;
+    private final NotificationRepository notificationRepository;
+    private final ScheduleOptimizer scheduleOptimizer;
+    
+    public List&lt;Schedule&gt; getSchedulesByUser(UUID userId) {
+<span class="nc" id="L28">        log.info(&quot;Fetching schedules for user ID: {}&quot;, userId);</span>
+        // Return schedules sorted by optimization score (highest first) so highest priority meetings appear first
+<span class="nc" id="L30">        List&lt;Schedule&gt; schedules = scheduleRepository.findByUserIdOrderByOptimizationScoreDesc(userId);</span>
+<span class="nc" id="L31">        log.info(&quot;Found {} schedules for user {}, sorted by optimization score (highest first)&quot;, schedules.size(), userId);</span>
+<span class="nc" id="L32">        return schedules;</span>
+    }
+    
+    @Transactional
+    public ScheduleOptimizer.OptimizedScheduleResult optimizeSchedule(UUID userId) {
+<span class="nc" id="L37">        log.info(&quot;\n&quot; + &quot;=&quot;.repeat(80));</span>
+<span class="nc" id="L38">        log.info(&quot;🎯 SCHEDULE SERVICE: Starting optimization for user: {}&quot;, userId);</span>
+<span class="nc" id="L39">        log.info(&quot;=&quot;.repeat(80));</span>
+        
+<span class="nc" id="L41">        log.info(&quot;Optimizing schedule for user ID: {}&quot;, userId);</span>
+        
+        // Get pending meetings for the user
+<span class="nc" id="L44">        List&lt;Meeting&gt; pendingMeetings = meetingRepository.findByUserIdAndStatusOrderByPriorityDescDeadlineAsc(</span>
+            userId, Meeting.MeetingStatus.pending);
+        
+<span class="nc" id="L47">        System.out.println(&quot;📋 Retrieved &quot; + pendingMeetings.size() + &quot; pending meetings from database&quot;);</span>
+<span class="nc" id="L48">        log.info(&quot;Found {} pending meetings for user {}&quot;, pendingMeetings.size(), userId);</span>
+        
+<span class="nc bnc" id="L50" title="All 2 branches missed.">        if (pendingMeetings.isEmpty()) {</span>
+<span class="nc" id="L51">            System.out.println(&quot;❌ ERROR: No pending meetings found!&quot;);</span>
+<span class="nc" id="L52">            log.warn(&quot;No pending meetings found for user {}&quot;, userId);</span>
+<span class="nc" id="L53">            throw new IllegalArgumentException(&quot;No pending meetings found for optimization&quot;);</span>
+        }
+        
+        // Get user's availability
+<span class="nc" id="L57">        List&lt;Availability&gt; availabilities = availabilityRepository.findByUserIdOrderByStartTimeAsc(userId);</span>
+        
+<span class="nc" id="L59">        System.out.println(&quot;⏰ Retrieved &quot; + availabilities.size() + &quot; availability slots from database&quot;);</span>
+<span class="nc" id="L60">        log.info(&quot;Found {} availability slots for user {}&quot;, availabilities.size(), userId);</span>
+        
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        if (availabilities.isEmpty()) {</span>
+<span class="nc" id="L63">            System.out.println(&quot;❌ ERROR: No availability slots found!&quot;);</span>
+<span class="nc" id="L64">            log.warn(&quot;No availability slots found for user {}&quot;, userId);</span>
+<span class="nc" id="L65">            throw new IllegalArgumentException(&quot;No availability slots found. Please set your availability first.&quot;);</span>
+        }
+        
+        // Log meeting details for debugging
+<span class="nc" id="L69">        System.out.println(&quot;\n📝 MEETING DETAILS FROM DATABASE:&quot;);</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        for (int i = 0; i &lt; pendingMeetings.size(); i++) {</span>
+<span class="nc" id="L71">            Meeting meeting = pendingMeetings.get(i);</span>
+<span class="nc" id="L72">            System.out.println(String.format(&quot;   %d. %s (ID: %s)&quot;, i + 1, meeting.getTitle(), meeting.getId()));</span>
+<span class="nc" id="L73">            System.out.println(String.format(&quot;      Priority: %d | Duration: %d min | Deadline: %s | Status: %s&quot;,</span>
+<span class="nc" id="L74">                meeting.getPriority(), meeting.getDurationMinutes(), meeting.getDeadline(), meeting.getStatus()));</span>
+<span class="nc" id="L75">            log.info(&quot;Meeting: {} - Priority: {}, Duration: {}min, Deadline: {}&quot;, </span>
+<span class="nc" id="L76">                meeting.getTitle(), meeting.getPriority(), meeting.getDurationMinutes(), meeting.getDeadline());</span>
+        }
+        
+        // Log availability details for debugging
+<span class="nc" id="L80">        System.out.println(&quot;\n📅 AVAILABILITY DETAILS FROM DATABASE:&quot;);</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">        for (int i = 0; i &lt; availabilities.size(); i++) {</span>
+<span class="nc" id="L82">            Availability availability = availabilities.get(i);</span>
+<span class="nc" id="L83">            long hours = java.time.temporal.ChronoUnit.HOURS.between(availability.getStartTime(), availability.getEndTime());</span>
+<span class="nc" id="L84">            System.out.println(String.format(&quot;   %d. %s → %s (%d hours)&quot;, i + 1,</span>
+<span class="nc" id="L85">                availability.getStartTime(), availability.getEndTime(), hours));</span>
+<span class="nc" id="L86">            log.info(&quot;Availability: {} to {}&quot;, availability.getStartTime(), availability.getEndTime());</span>
+        }
+        
+<span class="nc" id="L89">        System.out.println(&quot;\n🚀 Calling ScheduleOptimizer.optimizeSchedule()...\n&quot;);</span>
+        
+        // Run optimization algorithm
+<span class="nc" id="L92">        ScheduleOptimizer.OptimizedScheduleResult result = scheduleOptimizer.optimizeSchedule(</span>
+            pendingMeetings, availabilities);
+        
+<span class="nc" id="L95">        System.out.println(&quot;\n💾 SAVING SCHEDULED MEETINGS TO DATABASE:&quot;);</span>
+        
+        // First, delete any existing schedules for these meetings to avoid duplicates
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        for (ScheduleOptimizer.ScheduledMeeting scheduledMeeting : result.getScheduledMeetings()) {</span>
+<span class="nc" id="L99">            Meeting meeting = scheduledMeeting.getMeeting();</span>
+<span class="nc" id="L100">            List&lt;Schedule&gt; existingSchedules = scheduleRepository.findByMeetingId(meeting.getId());</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">            if (!existingSchedules.isEmpty()) {</span>
+<span class="nc" id="L102">                System.out.println(String.format(&quot;   🗑️  Deleting %d existing schedule(s) for meeting '%s'&quot;, </span>
+<span class="nc" id="L103">                    existingSchedules.size(), meeting.getTitle()));</span>
+<span class="nc" id="L104">                scheduleRepository.deleteAll(existingSchedules);</span>
+            }
+<span class="nc" id="L106">        }</span>
+        
+        // Save scheduled meetings
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        for (int i = 0; i &lt; result.getScheduledMeetings().size(); i++) {</span>
+<span class="nc" id="L110">            ScheduleOptimizer.ScheduledMeeting scheduledMeeting = result.getScheduledMeetings().get(i);</span>
+            
+            // Update meeting status to scheduled
+<span class="nc" id="L113">            Meeting meeting = scheduledMeeting.getMeeting();</span>
+<span class="nc" id="L114">            meeting.setStatus(Meeting.MeetingStatus.scheduled);</span>
+<span class="nc" id="L115">            meetingRepository.save(meeting);</span>
+<span class="nc" id="L116">            System.out.println(String.format(&quot;   %d. Updated meeting '%s' status to SCHEDULED&quot;, i + 1, meeting.getTitle()));</span>
+            
+            // Get individual meeting score (not the overall average)
+<span class="nc" id="L119">            double individualScore = scheduledMeeting.getScore();</span>
+<span class="nc" id="L120">            log.info(&quot;      ════════════════════════════════════════════════════════&quot;);</span>
+<span class="nc" id="L121">            log.info(&quot;      📊 MEETING: {}&quot;, meeting.getTitle());</span>
+<span class="nc" id="L122">            log.info(&quot;      🎯 INDIVIDUAL SCORE: {}&quot;, String.format(&quot;%.3f&quot;, individualScore));</span>
+<span class="nc" id="L123">            log.info(&quot;      📋 Details: Priority={}/10 | Duration={} min | Deadline={}&quot;,</span>
+<span class="nc" id="L124">                meeting.getPriority(), meeting.getDurationMinutes(), meeting.getDeadline());</span>
+<span class="nc" id="L125">            log.info(&quot;      ════════════════════════════════════════════════════════&quot;);</span>
+            
+            // Create schedule record
+<span class="nc" id="L128">            Schedule schedule = new Schedule();</span>
+<span class="nc" id="L129">            schedule.setMeeting(meeting);</span>
+<span class="nc" id="L130">            schedule.setUser(meeting.getUser());</span>
+<span class="nc" id="L131">            schedule.setScheduledStart(scheduledMeeting.getScheduledStart());</span>
+<span class="nc" id="L132">            schedule.setScheduledEnd(scheduledMeeting.getScheduledEnd());</span>
+            // Use individual meeting score, not the overall optimization score
+<span class="nc" id="L134">            schedule.setOptimizationScore(individualScore);</span>
+            
+<span class="nc" id="L136">            Schedule savedSchedule = scheduleRepository.save(schedule);</span>
+<span class="nc" id="L137">            log.info(&quot;      ✅ Created schedule record (ID: {})&quot;, savedSchedule.getId());</span>
+<span class="nc" id="L138">            log.info(&quot;      💾 SAVED TO DATABASE - Score: {}&quot;, String.format(&quot;%.3f&quot;, savedSchedule.getOptimizationScore()));</span>
+            
+            // Verify score was saved correctly
+<span class="nc bnc" id="L141" title="All 2 branches missed.">            if (Math.abs(savedSchedule.getOptimizationScore() - individualScore) &lt; 0.001) {</span>
+<span class="nc" id="L142">                log.info(&quot;      ✅ VERIFIED: Score saved correctly ({} = {})&quot;, </span>
+<span class="nc" id="L143">                    String.format(&quot;%.3f&quot;, savedSchedule.getOptimizationScore()), String.format(&quot;%.3f&quot;, individualScore));</span>
+            } else {
+<span class="nc" id="L145">                log.warn(&quot;      ⚠️  WARNING: Score mismatch! Saved: {}, Expected: {}&quot;, </span>
+<span class="nc" id="L146">                    String.format(&quot;%.3f&quot;, savedSchedule.getOptimizationScore()), String.format(&quot;%.3f&quot;, individualScore));</span>
+            }
+<span class="nc" id="L148">            log.info(&quot;&quot;);</span>
+        }
+        
+        // Send notification
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if (!pendingMeetings.isEmpty()) {</span>
+<span class="nc" id="L153">            createNotification(meetingRepository.findById(pendingMeetings.get(0).getId()).get().getUser(),</span>
+                              Notification.NotificationType.SCHEDULE_OPTIMIZED,
+<span class="nc" id="L155">                              String.format(&quot;Schedule optimized! %d meetings scheduled.&quot;, result.getScheduledMeetings().size()));</span>
+<span class="nc" id="L156">            System.out.println(&quot;📧 Notification sent to user&quot;);</span>
+        }
+        
+<span class="nc" id="L159">        log.info(&quot;\n&quot; + &quot;=&quot;.repeat(80));</span>
+<span class="nc" id="L160">        log.info(&quot;✅ SCHEDULE SERVICE: Optimization completed successfully!&quot;);</span>
+<span class="nc" id="L161">        log.info(&quot;=&quot;.repeat(80));</span>
+<span class="nc" id="L162">        log.info(&quot;📊 SUMMARY:&quot;);</span>
+<span class="nc" id="L163">        log.info(&quot;   • Total meetings scheduled: {}&quot;, result.getScheduledMeetings().size());</span>
+<span class="nc" id="L164">        log.info(&quot;   • Overall optimization score (average): {}&quot;, String.format(&quot;%.3f&quot;, result.getOptimizationScore()));</span>
+<span class="nc" id="L165">        log.info(&quot;&quot;);</span>
+<span class="nc" id="L166">        log.info(&quot;🎯 INDIVIDUAL MEETING SCORES (SAVED TO DATABASE):&quot;);</span>
+<span class="nc" id="L167">        log.info(&quot;=&quot;.repeat(80));</span>
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        for (int i = 0; i &lt; result.getScheduledMeetings().size(); i++) {</span>
+<span class="nc" id="L169">            ScheduleOptimizer.ScheduledMeeting sm = result.getScheduledMeetings().get(i);</span>
+<span class="nc" id="L170">            log.info(&quot;   #{}: {}&quot;, i + 1, sm.getMeeting().getTitle());</span>
+<span class="nc" id="L171">            log.info(&quot;        SCORE: {} | Priority: {}/10 | Duration: {} min | Deadline: {}&quot;, </span>
+<span class="nc" id="L172">                String.format(&quot;%.3f&quot;, sm.getScore()), sm.getMeeting().getPriority(), sm.getMeeting().getDurationMinutes(), sm.getMeeting().getDeadline());</span>
+<span class="nc" id="L173">            log.info(&quot;        Time: {} → {}&quot;, sm.getScheduledStart(), sm.getScheduledEnd());</span>
+<span class="nc" id="L174">            log.info(&quot;&quot;);</span>
+        }
+<span class="nc" id="L176">        log.info(&quot;=&quot;.repeat(80));</span>
+<span class="nc" id="L177">        log.info(&quot;✅ All scores have been saved to the database!&quot;);</span>
+<span class="nc" id="L178">        log.info(&quot;=&quot;.repeat(80) + &quot;\n&quot;);</span>
+        
+<span class="nc" id="L180">        log.info(&quot;Schedule optimization completed. {} meetings scheduled.&quot;, result.getScheduledMeetings().size());</span>
+<span class="nc" id="L181">        return result;</span>
+    }
+    
+    @Transactional
+    public Schedule createCustomSchedule(UUID userId, UUID meetingId, String startTime, String endTime) {
+<span class="nc" id="L186">        log.info(&quot;Creating custom schedule for user {} and meeting {}&quot;, userId, meetingId);</span>
+        
+        // Get the meeting
+<span class="nc" id="L189">        Meeting meeting = meetingRepository.findById(meetingId)</span>
+<span class="nc" id="L190">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Meeting not found&quot;));</span>
+        
+        // Verify the meeting belongs to the user
+<span class="nc bnc" id="L193" title="All 2 branches missed.">        if (!meeting.getUser().getId().equals(userId)) {</span>
+<span class="nc" id="L194">            throw new IllegalArgumentException(&quot;Meeting does not belong to the specified user&quot;);</span>
+        }
+        
+        // Update meeting status to scheduled
+<span class="nc" id="L198">        meeting.setStatus(Meeting.MeetingStatus.scheduled);</span>
+<span class="nc" id="L199">        meetingRepository.save(meeting);</span>
+        
+        // Create custom schedule
+<span class="nc" id="L202">        Schedule schedule = new Schedule();</span>
+<span class="nc" id="L203">        schedule.setMeeting(meeting);</span>
+<span class="nc" id="L204">        schedule.setUser(meeting.getUser());</span>
+<span class="nc" id="L205">        schedule.setScheduledStart(LocalDateTime.parse(startTime));</span>
+<span class="nc" id="L206">        schedule.setScheduledEnd(LocalDateTime.parse(endTime));</span>
+<span class="nc" id="L207">        schedule.setOptimizationScore(1.0); // Custom schedules get perfect score</span>
+        
+<span class="nc" id="L209">        Schedule savedSchedule = scheduleRepository.save(schedule);</span>
+        
+        // Notify user about custom schedule
+<span class="nc" id="L212">        createNotification(meeting.getUser(), Notification.NotificationType.MEETING_SCHEDULED,</span>
+<span class="nc" id="L213">            &quot;Meeting '&quot; + meeting.getTitle() + &quot;' has been custom scheduled by your secretary&quot;);</span>
+        
+<span class="nc" id="L215">        log.info(&quot;Custom schedule created successfully for meeting: {}&quot;, meeting.getTitle());</span>
+<span class="nc" id="L216">        return savedSchedule;</span>
+    }
+    
+    @Transactional
+    public Schedule updateMeetingSchedule(UUID userId, UUID meetingId, String startTime, String endTime) {
+<span class="nc" id="L221">        log.info(&quot;Updating meeting schedule for user {} and meeting {}&quot;, userId, meetingId);</span>
+        
+        // Get the meeting first
+<span class="nc" id="L224">        Meeting meeting = meetingRepository.findById(meetingId)</span>
+<span class="nc" id="L225">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Meeting not found&quot;));</span>
+        
+        // Verify the meeting belongs to the user
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        if (!meeting.getUser().getId().equals(userId)) {</span>
+<span class="nc" id="L229">            throw new IllegalArgumentException(&quot;Meeting does not belong to the specified user&quot;);</span>
+        }
+        
+        // Try to find existing schedule for this meeting
+<span class="nc" id="L233">        Optional&lt;Schedule&gt; existingScheduleOpt = scheduleRepository.findByMeetingIdAndUserId(meetingId, userId);</span>
+        
+        Schedule schedule;
+<span class="nc bnc" id="L236" title="All 2 branches missed.">        if (existingScheduleOpt.isPresent()) {</span>
+            // Update existing schedule
+<span class="nc" id="L238">            schedule = existingScheduleOpt.get();</span>
+<span class="nc" id="L239">            schedule.setScheduledStart(LocalDateTime.parse(startTime));</span>
+<span class="nc" id="L240">            schedule.setScheduledEnd(LocalDateTime.parse(endTime));</span>
+<span class="nc" id="L241">            log.info(&quot;Updating existing schedule for meeting: {}&quot;, meeting.getTitle());</span>
+        } else {
+            // Create new schedule if none exists
+<span class="nc" id="L244">            schedule = new Schedule();</span>
+<span class="nc" id="L245">            schedule.setMeeting(meeting);</span>
+<span class="nc" id="L246">            schedule.setUser(meeting.getUser());</span>
+<span class="nc" id="L247">            schedule.setScheduledStart(LocalDateTime.parse(startTime));</span>
+<span class="nc" id="L248">            schedule.setScheduledEnd(LocalDateTime.parse(endTime));</span>
+<span class="nc" id="L249">            schedule.setOptimizationScore(1.0);</span>
+            
+            // Update meeting status to scheduled
+<span class="nc" id="L252">            meeting.setStatus(Meeting.MeetingStatus.scheduled);</span>
+<span class="nc" id="L253">            meetingRepository.save(meeting);</span>
+<span class="nc" id="L254">            log.info(&quot;Creating new schedule for meeting: {}&quot;, meeting.getTitle());</span>
+        }
+        
+<span class="nc" id="L257">        Schedule savedSchedule = scheduleRepository.save(schedule);</span>
+        
+        // Notify user about schedule update
+<span class="nc" id="L260">        createNotification(meeting.getUser(), Notification.NotificationType.MEETING_SCHEDULED,</span>
+<span class="nc" id="L261">            &quot;Meeting '&quot; + meeting.getTitle() + &quot;' schedule has been updated by your secretary&quot;);</span>
+        
+<span class="nc" id="L263">        log.info(&quot;Meeting schedule updated successfully for meeting: {}&quot;, meeting.getTitle());</span>
+<span class="nc" id="L264">        return savedSchedule;</span>
+    }
+    
+    private void createNotification(User user, Notification.NotificationType type, String message) {
+<span class="nc" id="L268">        Notification notification = new Notification();</span>
+<span class="nc" id="L269">        notification.setType(type);</span>
+<span class="nc" id="L270">        notification.setMessage(message);</span>
+<span class="nc" id="L271">        notification.setUser(user);</span>
+<span class="nc" id="L272">        notification.setIsRead(false);</span>
+<span class="nc" id="L273">        notificationRepository.save(notification);</span>
+<span class="nc" id="L274">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

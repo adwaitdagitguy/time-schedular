@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Schedule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">meeting-scheduler-backend</a> &gt; <a href="index.source.html" class="el_package">com.meetingscheduler.entity</a> &gt; <span class="el_source">Schedule.java</span></div><h1>Schedule.java</h1><pre class="source lang-java linenums">package com.meetingscheduler.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;schedules&quot;)
+<span class="nc bnc" id="L14" title="All 62 branches missed.">@Data</span>
+<span class="nc" id="L15">@NoArgsConstructor</span>
+<span class="nc" id="L16">@AllArgsConstructor</span>
+@JsonIgnoreProperties({&quot;hibernateLazyInitializer&quot;, &quot;handler&quot;})
+public class Schedule {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = &quot;id&quot;)
+<span class="nc" id="L23">    private UUID id;</span>
+    
+    @Column(name = &quot;scheduled_start&quot;, nullable = false)
+<span class="nc" id="L26">    private LocalDateTime scheduledStart;</span>
+    
+    @Column(name = &quot;scheduled_end&quot;, nullable = false)
+<span class="nc" id="L29">    private LocalDateTime scheduledEnd;</span>
+    
+    @Column(name = &quot;optimization_score&quot;)
+<span class="nc" id="L32">    private Double optimizationScore;</span>
+    
+    @Column(name = &quot;created_at&quot;)
+<span class="nc" id="L35">    private LocalDateTime createdAt;</span>
+    
+    // Relationship with Meeting
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;meeting_id&quot;)
+    @JsonIgnoreProperties({&quot;user&quot;})
+<span class="nc" id="L41">    private Meeting meeting;</span>
+    
+    // Relationship with User (single user system)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;user_id&quot;)
+    @JsonIgnoreProperties({&quot;meetings&quot;, &quot;availabilities&quot;, &quot;notifications&quot;, &quot;password&quot;})
+<span class="nc" id="L47">    private User user;</span>
+    
+    @PrePersist
+    protected void onCreate() {
+<span class="nc" id="L51">        createdAt = LocalDateTime.now();</span>
+<span class="nc" id="L52">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

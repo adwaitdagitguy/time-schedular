@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScheduleController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">meeting-scheduler-backend</a> &gt; <a href="index.source.html" class="el_package">com.meetingscheduler.controller</a> &gt; <span class="el_source">ScheduleController.java</span></div><h1>ScheduleController.java</h1><pre class="source lang-java linenums">package com.meetingscheduler.controller;
+
+import com.meetingscheduler.algorithm.ScheduleOptimizer;
+import com.meetingscheduler.entity.Schedule;
+import com.meetingscheduler.service.ScheduleService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping(&quot;/api/schedules&quot;)
+<span class="nc" id="L16">@RequiredArgsConstructor</span>
+<span class="nc" id="L17">@Slf4j</span>
+@CrossOrigin(origins = &quot;*&quot;)
+public class ScheduleController {
+    
+    private final ScheduleService scheduleService;
+    
+    @GetMapping(&quot;/user/{userId}&quot;)
+    public ResponseEntity&lt;List&lt;Schedule&gt;&gt; getSchedulesByUser(@PathVariable UUID userId) {
+<span class="nc" id="L25">        log.info(&quot;Fetching schedules for user ID: {}&quot;, userId);</span>
+<span class="nc" id="L26">        List&lt;Schedule&gt; schedules = scheduleService.getSchedulesByUser(userId);</span>
+<span class="nc" id="L27">        return ResponseEntity.ok(schedules);</span>
+    }
+    
+    @PostMapping(&quot;/optimize/user/{userId}&quot;)
+    public ResponseEntity&lt;?&gt; optimizeSchedule(@PathVariable UUID userId) {
+<span class="nc" id="L32">        log.info(&quot;Optimizing schedule for user ID: {}&quot;, userId);</span>
+        
+        try {
+<span class="nc" id="L35">            ScheduleOptimizer.OptimizedScheduleResult result = scheduleService.optimizeSchedule(userId);</span>
+<span class="nc" id="L36">            return ResponseEntity.ok(result);</span>
+<span class="nc" id="L37">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L38">            return ResponseEntity.badRequest().body(e.getMessage());</span>
+<span class="nc" id="L39">        } catch (Exception e) {</span>
+<span class="nc" id="L40">            log.error(&quot;Error optimizing schedule: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L41">            return ResponseEntity.internalServerError().body(&quot;Failed to optimize schedule: &quot; + e.getMessage());</span>
+        }
+    }
+    
+    @PostMapping(&quot;/custom/user/{userId}&quot;)
+    public ResponseEntity&lt;?&gt; createCustomSchedule(@PathVariable UUID userId, 
+                                                @RequestBody CustomScheduleRequest request) {
+<span class="nc" id="L48">        log.info(&quot;Creating custom schedule for user ID: {}&quot;, userId);</span>
+        
+        try {
+<span class="nc" id="L51">            Schedule schedule = scheduleService.createCustomSchedule(userId, request.getMeetingId(), </span>
+<span class="nc" id="L52">                request.getStartTime(), request.getEndTime());</span>
+<span class="nc" id="L53">            return ResponseEntity.ok(schedule);</span>
+<span class="nc" id="L54">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L55">            return ResponseEntity.badRequest().body(e.getMessage());</span>
+<span class="nc" id="L56">        } catch (Exception e) {</span>
+<span class="nc" id="L57">            log.error(&quot;Error creating custom schedule: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L58">            return ResponseEntity.internalServerError().body(&quot;Failed to create custom schedule: &quot; + e.getMessage());</span>
+        }
+    }
+    
+    @PutMapping(&quot;/update/user/{userId}&quot;)
+    public ResponseEntity&lt;?&gt; updateMeetingSchedule(@PathVariable UUID userId, 
+                                                 @RequestBody UpdateScheduleRequest request) {
+<span class="nc" id="L65">        log.info(&quot;Updating meeting schedule for user ID: {}&quot;, userId);</span>
+        
+        try {
+<span class="nc" id="L68">            Schedule schedule = scheduleService.updateMeetingSchedule(userId, request.getMeetingId(), </span>
+<span class="nc" id="L69">                request.getStartTime(), request.getEndTime());</span>
+<span class="nc" id="L70">            return ResponseEntity.ok(schedule);</span>
+<span class="nc" id="L71">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L72">            return ResponseEntity.badRequest().body(e.getMessage());</span>
+<span class="nc" id="L73">        } catch (Exception e) {</span>
+<span class="nc" id="L74">            log.error(&quot;Error updating meeting schedule: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L75">            return ResponseEntity.internalServerError().body(&quot;Failed to update meeting schedule: &quot; + e.getMessage());</span>
+        }
+    }
+    
+    // DTO for custom schedule request
+<span class="nc" id="L80">    public static class CustomScheduleRequest {</span>
+        private UUID meetingId;
+        private String startTime;
+        private String endTime;
+        
+        // Getters and setters
+<span class="nc" id="L86">        public UUID getMeetingId() { return meetingId; }</span>
+<span class="nc" id="L87">        public void setMeetingId(UUID meetingId) { this.meetingId = meetingId; }</span>
+<span class="nc" id="L88">        public String getStartTime() { return startTime; }</span>
+<span class="nc" id="L89">        public void setStartTime(String startTime) { this.startTime = startTime; }</span>
+<span class="nc" id="L90">        public String getEndTime() { return endTime; }</span>
+<span class="nc" id="L91">        public void setEndTime(String endTime) { this.endTime = endTime; }</span>
+    }
+    
+    // DTO for update schedule request
+<span class="nc" id="L95">    public static class UpdateScheduleRequest {</span>
+        private UUID meetingId;
+        private String startTime;
+        private String endTime;
+        
+        // Getters and setters
+<span class="nc" id="L101">        public UUID getMeetingId() { return meetingId; }</span>
+<span class="nc" id="L102">        public void setMeetingId(UUID meetingId) { this.meetingId = meetingId; }</span>
+<span class="nc" id="L103">        public String getStartTime() { return startTime; }</span>
+<span class="nc" id="L104">        public void setStartTime(String startTime) { this.startTime = startTime; }</span>
+<span class="nc" id="L105">        public String getEndTime() { return endTime; }</span>
+<span class="nc" id="L106">        public void setEndTime(String endTime) { this.endTime = endTime; }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
