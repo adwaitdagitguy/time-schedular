@@ -1,0 +1,41 @@
+services:
+  frontend:
+    image: meeting-scheduler-frontend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  backend:
+    image: meeting-scheduler-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/meeting_scheduler
+      DB_USERNAME: scheduler_user
+      DB_PASSWORD: scheduler_password
+      JWT_SECRET: change-this-secret
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: meeting_scheduler
+      POSTGRES_USER: scheduler_user
+      POSTGRES_PASSWORD: scheduler_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

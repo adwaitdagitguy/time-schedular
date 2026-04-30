@@ -7,8 +7,11 @@ pipeline {
     }
 
     environment {
-        BACKEND_IMAGE = 'scheduler-backend:v1'
-        FRONTEND_IMAGE = 'scheduler-frontend:v1'
+        DOCKER_REGISTRY = 'docker.io'
+        DOCKER_REPO = 'yashpatil49'
+        IMAGE_TAG = "v${BUILD_NUMBER}"
+        BACKEND_IMAGE = "${DOCKER_REPO}/scheduler-backend:${IMAGE_TAG}"
+        FRONTEND_IMAGE = "${DOCKER_REPO}/scheduler-frontend:${IMAGE_TAG}"
     }
 
     stages {
@@ -96,6 +99,24 @@ pipeline {
                     } else {
                         bat "docker build -t %BACKEND_IMAGE% ./backend"
                         bat "docker build -t %FRONTEND_IMAGE% ."
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Images') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    script {
+                        if (isUnix()) {
+                            sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
+                            sh "docker push ${BACKEND_IMAGE}"
+                            sh "docker push ${FRONTEND_IMAGE}"
+                        } else {
+                            bat '@echo %DOCKER_PASSWORD%| docker login -u %DOCKER_USERNAME% --password-stdin'
+                            bat "docker push %BACKEND_IMAGE%"
+                            bat "docker push %FRONTEND_IMAGE%"
+                        }
                     }
                 }
             }

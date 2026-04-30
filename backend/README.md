@@ -117,6 +117,7 @@ The system uses the following main entities:
 
 ### Environment Variables
 ```bash
+DB_URL=jdbc:postgresql://localhost:5432/meeting_scheduler
 DB_USERNAME=your_db_username
 DB_PASSWORD=your_db_password
 JWT_SECRET=your_jwt_secret_key
