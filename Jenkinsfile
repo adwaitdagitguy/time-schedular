@@ -130,12 +130,10 @@ pipeline {
         stage('Deploy to K8s') {
             steps {
                 script {
-                    // Extract the port from the current kubeconfig (which says 127.0.0.1)
-                    def kubeServer = sh(script: "kubectl config view -o jsonpath='{.clusters[0].cluster.server}'", returnStdout: true).trim()
-                    def kubePort = kubeServer.tokenize(':')[-1]
-                    def deployBase = "kubectl --server=https://host.docker.internal:${kubePort} --insecure-skip-tls-verify"
+                    // Connect directly to the internal Minikube API server via Docker network
+                    def deployBase = "kubectl --server=https://minikube:8443 --insecure-skip-tls-verify"
                     
-                    echo "Deploying to host.docker.internal:${kubePort} with images: ${BACKEND_IMAGE} and ${FRONTEND_IMAGE}"
+                    echo "Deploying directly to Minikube cluster with images: ${BACKEND_IMAGE} and ${FRONTEND_IMAGE}"
                     
                     if (isUnix()) {
                         sh "${deployBase} set image deployment/backend backend=${BACKEND_IMAGE}"
