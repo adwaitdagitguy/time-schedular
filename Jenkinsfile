@@ -100,10 +100,10 @@ pipeline {
                 script {
                     if (isUnix()) {
                         sh "docker build -t ${BACKEND_IMAGE} ./backend"
-                        sh "docker build -t ${FRONTEND_IMAGE} ."
+                        sh "docker build --build-arg VITE_API_BASE_URL=/api -t ${FRONTEND_IMAGE} ."
                     } else {
                         bat "docker build -t %BACKEND_IMAGE% ./backend"
-                        bat "docker build -t %FRONTEND_IMAGE% ."
+                        bat "docker build --build-arg VITE_API_BASE_URL=/api -t %FRONTEND_IMAGE% ."
                     }
                 }
             }
