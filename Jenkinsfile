@@ -2,19 +2,34 @@ pipeline {
     agent any
 
     options {
-        timestamps()
         disableConcurrentBuilds()
     }
 
     environment {
+        // Defaults - can be overridden by pipeline.properties
         DOCKER_REGISTRY = 'docker.io'
         DOCKER_REPO = 'yashpatil49'
-        IMAGE_TAG = "v${BUILD_NUMBER}"
-        BACKEND_IMAGE = "${DOCKER_REPO}/scheduler-backend:${IMAGE_TAG}"
-        FRONTEND_IMAGE = "${DOCKER_REPO}/scheduler-frontend:${IMAGE_TAG}"
+        SONAR_PROJECT_KEY = 'meeting-scheduler-backend'
     }
-
+    
     stages {
+        stage('Setup Environment') {
+            steps {
+                script {
+                    if (fileExists('pipeline.properties')) {
+                        def props = readProperties file: 'pipeline.properties'
+                        env.DOCKER_REGISTRY = props.DOCKER_REGISTRY ?: env.DOCKER_REGISTRY
+                        env.DOCKER_REPO = props.DOCKER_REPO ?: env.DOCKER_REPO
+                        env.SONAR_PROJECT_KEY = props.SONAR_PROJECT_KEY ?: env.SONAR_PROJECT_KEY
+                    }
+                    
+                    env.IMAGE_TAG = "v${BUILD_NUMBER}"
+                    env.BACKEND_IMAGE = "${env.DOCKER_REPO}/scheduler-backend:${env.IMAGE_TAG}"
+                    env.FRONTEND_IMAGE = "${env.DOCKER_REPO}/scheduler-frontend:${env.IMAGE_TAG}"
+                }
+            }
+        }
+
         stage('Clone Repo') {
             steps {
                 checkout scm
@@ -73,9 +88,9 @@ pipeline {
                 withSonarQubeEnv('SonarQube') {
                     script {
                         if (isUnix()) {
-                            sh 'mvn -B -f backend/pom.xml sonar:sonar -Dsonar.projectKey=meeting-scheduler-backend'
+                            sh "mvn -B -f backend/pom.xml sonar:sonar -Dsonar.projectKey=${SONAR_PROJECT_KEY}"
                         } else {
-                            bat 'mvn -B -f backend/pom.xml sonar:sonar -Dsonar.projectKey=meeting-scheduler-backend'
+                            bat "mvn -B -f backend/pom.xml sonar:sonar -Dsonar.projectKey=${SONAR_PROJECT_KEY}"
                         }
                     }
                 }
@@ -117,6 +132,25 @@ pipeline {
                             bat "docker push %BACKEND_IMAGE%"
                             bat "docker push %FRONTEND_IMAGE%"
                         }
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to K8s') {
+            steps {
+                script {
+                    echo "Updating Kubernetes deployments with images: ${BACKEND_IMAGE} and ${FRONTEND_IMAGE}"
+                    if (isUnix()) {
+                        sh "kubectl set image deployment/backend backend=${BACKEND_IMAGE}"
+                        sh "kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}"
+                        sh "kubectl rollout status deployment/backend"
+                        sh "kubectl rollout status deployment/frontend"
+                    } else {
+                        bat "kubectl set image deployment/backend backend=%BACKEND_IMAGE%"
+                        bat "kubectl set image deployment/frontend frontend=%FRONTEND_IMAGE%"
+                        bat "kubectl rollout status deployment/backend"
+                        bat "kubectl rollout status deployment/frontend"
                     }
                 }
             }
