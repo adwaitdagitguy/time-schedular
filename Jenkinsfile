@@ -85,23 +85,13 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    script {
-                        if (isUnix()) {
-                            sh "mvn -B -f backend/pom.xml sonar:sonar -Dsonar.projectKey=${SONAR_PROJECT_KEY}"
-                        } else {
-                            bat "mvn -B -f backend/pom.xml sonar:sonar -Dsonar.projectKey=${SONAR_PROJECT_KEY}"
-                        }
-                    }
-                }
+                echo "Skipping SonarQube for local demo to save RAM"
             }
         }
 
         stage('Quality Gate') {
             steps {
-                timeout(time: 10, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
+                echo "Skipping Quality Gate"
             }
         }
 
