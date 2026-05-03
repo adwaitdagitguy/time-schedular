@@ -8,7 +8,7 @@ pipeline {
     environment {
         // Defaults - can be overridden by pipeline.properties
         DOCKER_REGISTRY = 'docker.io'
-        DOCKER_REPO = 'yashpatil49'
+        DOCKER_REPO = 'adwaitpatkhedkar'
         SONAR_PROJECT_KEY = 'meeting-scheduler-backend'
     }
     
