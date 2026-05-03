@@ -130,17 +130,23 @@ pipeline {
         stage('Deploy to K8s') {
             steps {
                 script {
-                    echo "Updating Kubernetes deployments with images: ${BACKEND_IMAGE} and ${FRONTEND_IMAGE}"
+                    // Extract the port from the current kubeconfig (which says 127.0.0.1)
+                    def kubeServer = sh(script: "kubectl config view -o jsonpath='{.clusters[0].cluster.server}'", returnStdout: true).trim()
+                    def kubePort = kubeServer.tokenize(':')[-1]
+                    def deployBase = "kubectl --server=https://host.docker.internal:${kubePort} --insecure-skip-tls-verify"
+                    
+                    echo "Deploying to host.docker.internal:${kubePort} with images: ${BACKEND_IMAGE} and ${FRONTEND_IMAGE}"
+                    
                     if (isUnix()) {
-                        sh "kubectl set image deployment/backend backend=${BACKEND_IMAGE}"
-                        sh "kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}"
-                        sh "kubectl rollout status deployment/backend"
-                        sh "kubectl rollout status deployment/frontend"
+                        sh "${deployBase} set image deployment/backend backend=${BACKEND_IMAGE}"
+                        sh "${deployBase} set image deployment/frontend frontend=${FRONTEND_IMAGE}"
+                        sh "${deployBase} rollout status deployment/backend"
+                        sh "${deployBase} rollout status deployment/frontend"
                     } else {
-                        bat "kubectl set image deployment/backend backend=%BACKEND_IMAGE%"
-                        bat "kubectl set image deployment/frontend frontend=%FRONTEND_IMAGE%"
-                        bat "kubectl rollout status deployment/backend"
-                        bat "kubectl rollout status deployment/frontend"
+                        bat "${deployBase} set image deployment/backend backend=%BACKEND_IMAGE%"
+                        bat "${deployBase} set image deployment/frontend frontend=%FRONTEND_IMAGE%"
+                        bat "${deployBase} rollout status deployment/backend"
+                        bat "${deployBase} rollout status deployment/frontend"
                     }
                 }
             }
