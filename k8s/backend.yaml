@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: adwaitpatkhedkar/scheduler-backend:latest
+        image: adwaitpatkhedkar/scheduler-backend:v14
         ports:
         - containerPort: 8081
         env:

@@ -9,29 +9,29 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - backend
+      - backend-service
 
-  backend:
-    image: meeting-scheduler-backend:latest
+  backend-service:
+    image: ${DOCKER_REPO}/scheduler-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/meeting_scheduler
-      DB_USERNAME: scheduler_user
-      DB_PASSWORD: scheduler_password
-      JWT_SECRET: change-this-secret
+      DB_URL: ${DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
     ports:
-      - "8080:8080"
+      - "8081:8081"
     depends_on:
       - postgres
 
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_DB: meeting_scheduler
-      POSTGRES_USER: scheduler_user
-      POSTGRES_PASSWORD: scheduler_password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:

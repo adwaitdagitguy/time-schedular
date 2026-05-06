@@ -1,14 +1,14 @@
 server:
-  port: 8080
+  port: 8081
 
 spring:
   application:
     name: meeting-scheduler-backend
   
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/meeting_scheduler}
-    username: ${DB_USERNAME:scheduler_user}
-    password: ${DB_PASSWORD:scheduler_password}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       connection-timeout: 30000
@@ -26,7 +26,7 @@ spring:
         
   security:
     jwt:
-      secret: ${JWT_SECRET:mySecretKey}
+      secret: ${JWT_SECRET}
       expiration: 86400000 # 24 hours
 
 logging:

@@ -45,7 +45,7 @@ Frontend (React) → Backend (Spring Boot) → Database (Supabase PostgreSQL)
 Create `src/lib/api.ts`:
 
 ```typescript
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = 'http://localhost:8081/api';
 
 export const api = {
   // Meetings
@@ -386,7 +386,7 @@ cd backend
 mvn spring-boot:run
 
 # In browser console
-fetch('http://localhost:8080/api/meetings/user/YOUR-USER-ID')
+fetch('http://localhost:8081/api/meetings/user/YOUR-USER-ID')
   .then(r => r.json())
   .then(console.log)
 ```

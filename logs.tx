@@ -1,0 +1,39 @@
+
+==> Audit <==
+┌─────────┬──────────────────────────┬──────────┬─────────┬─────────┬─────────────────────┬─────────────────────┐
+│ COMMAND │           ARGS           │ PROFILE  │  USER   │ VERSION │     START TIME      │      END TIME       │
+├─────────┼──────────────────────────┼──────────┼─────────┼─────────┼─────────────────────┼─────────────────────┤
+│ start   │ --driver=docker          │ minikube │ adwaitp │ v1.38.1 │ 24 Feb 26 12:16 IST │ 24 Feb 26 12:19 IST │
+│ service │ hello-minikube --url     │ minikube │ adwaitp │ v1.38.1 │ 24 Feb 26 12:36 IST │ 24 Feb 26 12:37 IST │
+│ service │ hello-minikube --url     │ minikube │ adwaitp │ v1.38.1 │ 24 Feb 26 12:38 IST │ 24 Feb 26 12:39 IST │
+│ stop    │                          │ minikube │ adwaitp │ v1.38.1 │ 24 Feb 26 12:42 IST │ 24 Feb 26 12:42 IST │
+│ start   │ --driver=docker          │ minikube │ adwaitp │ v1.38.1 │ 26 Apr 26 01:34 IST │ 26 Apr 26 01:35 IST │
+│ service │ frontend-service         │ minikube │ adwaitp │ v1.38.1 │ 26 Apr 26 01:35 IST │                     │
+│ service │ frontend-service         │ minikube │ adwaitp │ v1.38.1 │ 26 Apr 26 01:38 IST │ 26 Apr 26 01:45 IST │
+│ service │ frontend-service         │ minikube │ adwaitp │ v1.38.1 │ 26 Apr 26 01:42 IST │ 26 Apr 26 01:42 IST │
+│ service │ backend-service          │ minikube │ adwaitp │ v1.38.1 │ 26 Apr 26 01:45 IST │                     │
+│ service │ frontend-service         │ minikube │ adwaitp │ v1.38.1 │ 26 Apr 26 01:46 IST │ 26 Apr 26 02:54 IST │
+│ stop    │                          │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 14:11 IST │ 03 May 26 14:11 IST │
+│ start   │                          │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 14:11 IST │ 03 May 26 14:12 IST │
+│ addons  │ enable ingress           │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 14:12 IST │ 03 May 26 14:14 IST │
+│ tunnel  │                          │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 15:03 IST │ 03 May 26 15:03 IST │
+│ tunnel  │                          │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 15:03 IST │ 03 May 26 15:05 IST │
+│ tunnel  │                          │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 15:05 IST │ 03 May 26 15:38 IST │
+│ tunnel  │                          │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 15:38 IST │ 03 May 26 16:24 IST │
+│ ip      │                          │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 15:42 IST │ 03 May 26 15:42 IST │
+│ stop    │                          │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 16:24 IST │ 03 May 26 16:25 IST │
+│ start   │                          │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 16:25 IST │ 03 May 26 16:27 IST │
+│ addons  │ enable ingress           │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 16:27 IST │ 03 May 26 16:27 IST │
+│ ip      │                          │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 16:33 IST │ 03 May 26 16:33 IST │
+│ start   │                          │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 21:14 IST │ 03 May 26 21:22 IST │
+│ stop    │                          │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 23:47 IST │ 03 May 26 23:48 IST │
+│ start   │ --listen-address=0.0.0.0 │ minikube │ adwaitp │ v1.38.1 │ 03 May 26 23:48 IST │ 03 May 26 23:50 IST │
+│ service │ frontend-service --url   │ minikube │ adwaitp │ v1.38.1 │ 04 May 26 00:24 IST │ 04 May 26 00:30 IST │
+│ service │ frontend-service --url   │ minikube │ adwaitp │ v1.38.1 │ 04 May 26 01:41 IST │ 04 May 26 01:54 IST │
+│ service │ frontend-service --url   │ minikube │ adwaitp │ v1.38.1 │ 04 May 26 01:54 IST │ 04 May 26 01:55 IST │
+│ service │ frontend-service --url   │ minikube │ adwaitp │ v1.38.1 │ 04 May 26 01:55 IST │                     │
+│ start   │ --listen-address=0.0.0.0 │ minikube │ adwaitp │ v1.38.1 │ 04 May 26 12:33 IST │                     │
+└─────────┴──────────────────────────┴──────────┴─────────┴─────────┴─────────────────────┴─────────────────────┘
+
+
+==> Last Start <==

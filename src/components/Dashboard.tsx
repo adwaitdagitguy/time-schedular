@@ -75,7 +75,7 @@ export default function Dashboard() {
       setNotifications(unreadNotifications);
     } catch (error) {
       console.error('Error loading data:', error);
-      alert('Failed to load data. Make sure backend is running on http://localhost:8080');
+      alert('Failed to load data. Make sure the backend service is running and reachable.');
     } finally {
       setLoading(false);
     }
