@@ -7,9 +7,9 @@ services:
       - "80:80"
     restart: always
     depends_on:
-      - backend
+      - backend-service
 
-  backend:
+  backend-service:
     image: ${BACKEND_IMAGE}
     environment:
       - SPRING_PROFILES_ACTIVE=prod
