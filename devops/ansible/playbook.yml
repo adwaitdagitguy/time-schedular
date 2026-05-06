@@ -1,0 +1,308 @@
+---
+- name: Provision EC2 for Time Scheduler (Minikube + Jenkins + SonarQube)
+  hosts: scheduler
+  become: true
+
+  vars:
+    minikube_version: "v1.33.1"
+    kubectl_version: "v1.30.0"
+    jenkins_user: "jenkins"
+    docker_users:
+      - ec2-user
+      - jenkins
+
+  tasks:
+
+    # ── System Update ───────────────────────────────────────────────────────
+    - name: Update all packages
+      dnf:
+        name: "*"
+        state: latest
+        update_cache: yes
+
+    # ── Install Core Dependencies ───────────────────────────────────────────
+    - name: Install required packages
+      dnf:
+        name:
+          - git
+          - curl
+          - wget
+          - java-17-amazon-corretto
+          - conntrack
+          - socat
+          - unzip
+        state: present
+
+    # ── Docker ─────────────────────────────────────────────────────────────
+    - name: Install Docker
+      dnf:
+        name: docker
+        state: present
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add users to docker group
+      user:
+        name: "{{ item }}"
+        groups: docker
+        append: yes
+      loop: "{{ docker_users }}"
+
+    # ── kubectl ────────────────────────────────────────────────────────────
+    - name: Download kubectl
+      get_url:
+        url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
+
+    # ── Minikube ───────────────────────────────────────────────────────────
+    - name: Download Minikube
+      get_url:
+        url: "https://storage.googleapis.com/minikube/releases/{{ minikube_version }}/minikube-linux-amd64"
+        dest: /usr/local/bin/minikube
+        mode: '0755'
+
+    # ── Jenkins ────────────────────────────────────────────────────────────
+    - name: Add Jenkins repo
+      get_url:
+        url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
+        dest: /etc/yum.repos.d/jenkins.repo
+
+    - name: Import Jenkins GPG key
+      rpm_key:
+        state: present
+        key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+
+    - name: Install Jenkins
+      dnf:
+        name: jenkins
+        state: present
+
+    - name: Start and enable Jenkins
+      systemd:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    # ── Jenkins Plugin Installation ─────────────────────────────────────────
+    - name: Wait for Jenkins to be fully up (HTTP 200)
+      uri:
+        url: http://localhost:8080/login
+        method: GET
+        status_code: 200
+      register: jenkins_ready
+      until: jenkins_ready.status == 200
+      retries: 20
+      delay: 15
+
+    - name: Read Jenkins initial admin password
+      slurp:
+        src: /var/lib/jenkins/secrets/initialAdminPassword
+      register: jenkins_initial_password
+
+    - name: Set jenkins_pass fact
+      set_fact:
+        jenkins_pass: "{{ jenkins_initial_password.content | b64decode | trim }}"
+
+    - name: Download Jenkins CLI jar
+      get_url:
+        url: http://localhost:8080/jnlpJars/jenkins-cli.jar
+        dest: /tmp/jenkins-cli.jar
+        mode: '0644'
+
+    - name: Install required Jenkins plugins
+      shell: |
+        java -jar /tmp/jenkins-cli.jar \
+          -s http://localhost:8080 \
+          -auth admin:{{ jenkins_pass }} \
+          install-plugin \
+            git \
+            workflow-aggregator \
+            sonar \
+            credentials-binding \
+            junit \
+            pipeline-utility-steps \
+            ws-cleanup \
+            pipeline-stage-view \
+          -restart
+      register: plugin_install
+      changed_when: plugin_install.rc == 0
+
+    - name: Wait for Jenkins to restart after plugin installation
+      uri:
+        url: http://localhost:8080/login
+        method: GET
+        status_code: 200
+      register: jenkins_restarted
+      until: jenkins_restarted.status == 200
+      retries: 20
+      delay: 15
+
+    # ── Maven ───────────────────────────────────────────────────────────────
+    - name: Install Maven
+      dnf:
+        name: maven
+        state: present
+
+    # ── Node.js (for frontend builds) ───────────────────────────────────────
+    - name: Setup Node.js 20 repo
+      shell: curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+      args:
+        creates: /etc/yum.repos.d/nodesource-nodejs.repo
+
+    - name: Install Node.js
+      dnf:
+        name: nodejs
+        state: present
+
+    # ── Start Minikube (as ec2-user) ────────────────────────────────────────
+    - name: Start Minikube with Docker driver
+      become_user: ec2-user
+      shell: |
+        minikube start --driver=docker --cpus=2 --memory=2200mb
+      args:
+        creates: /home/ec2-user/.minikube/profiles/minikube/config.json
+      environment:
+        HOME: /home/ec2-user
+
+    - name: Enable Minikube ingress addon
+      become_user: ec2-user
+      shell: minikube addons enable ingress
+      environment:
+        HOME: /home/ec2-user
+
+    # ── Copy kubeconfig so Jenkins can use kubectl ──────────────────────────
+    - name: Ensure Jenkins .kube directory exists
+      file:
+        path: /var/lib/jenkins/.kube
+        state: directory
+        owner: jenkins
+        group: jenkins
+        mode: '0755'
+
+    - name: Copy kubeconfig to Jenkins home
+      copy:
+        src: /home/ec2-user/.kube/config
+        dest: /var/lib/jenkins/.kube/config
+        remote_src: yes
+        owner: jenkins
+        group: jenkins
+        mode: '0600'
+
+    # ── Minikube Tunnel Systemd Service (exposes port 80 on host) ──────────
+    - name: Create minikube-tunnel systemd service
+      copy:
+        dest: /etc/systemd/system/minikube-tunnel.service
+        content: |
+          [Unit]
+          Description=Minikube Tunnel
+          After=docker.service
+          Requires=docker.service
+
+          [Service]
+          Type=simple
+          User=ec2-user
+          ExecStart=/usr/local/bin/minikube tunnel
+          Restart=always
+          RestartSec=10
+          Environment="HOME=/home/ec2-user"
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable and start minikube-tunnel
+      systemd:
+        name: minikube-tunnel
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    # ── SonarQube (Community Edition, Docker container) ────────────────────
+    # SonarQube's internal Elasticsearch requires vm.max_map_count >= 262144
+    - name: Set vm.max_map_count for SonarQube/Elasticsearch (runtime)
+      sysctl:
+        name: vm.max_map_count
+        value: "262144"
+        state: present
+
+    - name: Persist vm.max_map_count across reboots
+      lineinfile:
+        path: /etc/sysctl.conf
+        line: "vm.max_map_count=262144"
+        create: yes
+
+    - name: Create SonarQube data directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "1000"   # SonarQube container runs as UID 1000
+        group: "1000"
+        mode: '0755'
+      loop:
+        - /opt/sonarqube/data
+        - /opt/sonarqube/logs
+        - /opt/sonarqube/extensions
+
+    - name: Create SonarQube systemd service
+      copy:
+        dest: /etc/systemd/system/sonarqube.service
+        content: |
+          [Unit]
+          Description=SonarQube Community
+          After=docker.service
+          Requires=docker.service
+
+          [Service]
+          Type=simple
+          Restart=always
+          RestartSec=15
+          ExecStartPre=-/usr/bin/docker rm -f sonarqube
+          ExecStart=/usr/bin/docker run --rm \
+            --name sonarqube \
+            -p 9000:9000 \
+            -v /opt/sonarqube/data:/opt/sonarqube/data \
+            -v /opt/sonarqube/logs:/opt/sonarqube/logs \
+            -v /opt/sonarqube/extensions:/opt/sonarqube/extensions \
+            -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
+            sonarqube:community
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable and start SonarQube
+      systemd:
+        name: sonarqube
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    - name: Wait for SonarQube to be ready (can take ~60s)
+      uri:
+        url: http://localhost:9000/api/system/status
+        method: GET
+        status_code: 200
+        return_content: yes
+      register: sonar_status
+      until: sonar_status.json.status == "UP"
+      retries: 20
+      delay: 15
+      ignore_errors: yes
+
+    - name: Show SonarQube status
+      debug:
+        msg: "SonarQube status: {{ sonar_status.json.status | default('not ready yet — check http://<EC2-IP>:9000') }}"
+
+    # ── Final Summary ────────────────────────────────────────────────────────
+    - name: Show Jenkins initial password
+      debug:
+        msg:
+          - "════════════════════════════════════════════════"
+          - " Jenkins : http://{{ ansible_host }}:8080"
+          - " Password: {{ jenkins_pass }}"
+          - " SonarQube: http://{{ ansible_host }}:9000  (admin / admin)"
+          - " App URL  : http://{{ ansible_host }} (after pipeline runs)"
+          - "════════════════════════════════════════════════"

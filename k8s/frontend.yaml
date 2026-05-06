@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: adwaitpatkhedkar/scheduler-frontend:v14
+        image: adwaitpatkhedkar/scheduler-frontend:v16
         ports:
         - containerPort: 80   # IMPORTANT
 ---

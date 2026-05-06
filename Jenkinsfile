@@ -85,13 +85,19 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                echo "Skipping SonarQube for local demo to save RAM"
+                dir('backend') {
+                    withSonarQubeEnv('SonarQube') {
+                        sh 'mvn -B sonar:sonar -Dsonar.projectKey=${SONAR_PROJECT_KEY}'
+                    }
+                }
             }
         }
 
         stage('Quality Gate') {
             steps {
-                echo "Skipping Quality Gate"
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
 
@@ -130,22 +136,16 @@ pipeline {
         stage('Deploy to K8s') {
             steps {
                 script {
-                    // Connect directly to the internal Minikube API server via Docker network
-                    def deployBase = "kubectl --server=https://minikube:8443 --insecure-skip-tls-verify"
-                    
-                    echo "Deploying directly to Minikube cluster with images: ${BACKEND_IMAGE} and ${FRONTEND_IMAGE}"
-                    
-                    if (isUnix()) {
-                        sh "${deployBase} set image deployment/backend backend=${BACKEND_IMAGE}"
-                        sh "${deployBase} set image deployment/frontend frontend=${FRONTEND_IMAGE}"
-                        sh "${deployBase} rollout status deployment/backend"
-                        sh "${deployBase} rollout status deployment/frontend"
-                    } else {
-                        bat "${deployBase} set image deployment/backend backend=%BACKEND_IMAGE%"
-                        bat "${deployBase} set image deployment/frontend frontend=%FRONTEND_IMAGE%"
-                        bat "${deployBase} rollout status deployment/backend"
-                        bat "${deployBase} rollout status deployment/frontend"
-                    }
+                    // Ansible copies the kubeconfig to /var/lib/jenkins/.kube/config
+                    // so kubectl works directly without needing a --server flag.
+                    echo "Deploying to Minikube on EC2 — images: ${BACKEND_IMAGE} and ${FRONTEND_IMAGE}"
+
+                    sh """
+                        kubectl set image deployment/backend backend=${BACKEND_IMAGE}
+                        kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}
+                        kubectl rollout status deployment/backend --timeout=120s
+                        kubectl rollout status deployment/frontend --timeout=120s
+                    """
                 }
             }
         }
