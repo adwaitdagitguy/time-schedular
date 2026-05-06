@@ -5,15 +5,15 @@ variable "aws_region" {
 }
 
 variable "ami_id" {
-  description = "Amazon Linux 2023 AMI ID (region-specific)"
+  description = "Ubuntu 22.04 LTS AMI ID (us-east-1). Find latest at: https://cloud-images.ubuntu.com/locator/ec2/"
   type        = string
-  default     = "ami-0c02fb55956c7d316" # Amazon Linux 2023 - us-east-1
+  default     = "ami-0c7217cdde317cfec" # Ubuntu 22.04 LTS - us-east-1
 }
 
 variable "instance_type" {
   description = "EC2 instance type. t3.large (2 vCPU, 8GB) required for Minikube + Jenkins + SonarQube."
   type        = string
-  default     = "t3.large"
+  default     = "t3.xlarge"
 }
 
 variable "key_pair_name" {
@@ -37,7 +37,7 @@ variable "private_key_path" {
 variable "ssh_user" {
   description = "SSH user for the EC2 instance"
   type        = string
-  default     = "ec2-user"
+  default     = "ubuntu"
 }
 
 variable "allowed_ssh_cidr" {

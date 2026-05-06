@@ -72,7 +72,7 @@ resource "aws_security_group" "scheduler_sg" {
 # ── Key Pair ───────────────────────────────────────────────────────────────────
 resource "aws_key_pair" "scheduler_key" {
   key_name   = var.key_pair_name
-  public_key = file(var.public_key_path)
+  public_key = file(pathexpand(var.public_key_path))
 }
 
 # ── EC2 Instance ───────────────────────────────────────────────────────────────
